@@ -197,4 +197,4 @@ This project is built incrementally, module by module (see roadmap above). When 
 
 ## 📄 License
 
-Add your license of choice here (MIT, Apache-2.0, etc.).
+MIT License
