@@ -195,6 +195,68 @@ GET  /api/v1/analytics/admin
 
 This project is built incrementally, module by module (see roadmap above). When adding a new backend module, follow the existing `router/schemas/service/repository` pattern and the naming conventions already used in the codebase.
 
+## 👥 Team Setup (New Contributor Checklist)
+
+If you're cloning this repo for the first time, here's what you need installed on **your own machine** before anything will run. The code and config files come from git — but the tools to actually run them (Docker, Python, Node) are a one-time local install per person, per machine.
+
+### 1. Install these first (one-time)
+
+- **Docker Desktop** — [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop). Required to run the PostgreSQL + pgvector database. After installing, open the app and wait until it says "Engine running."
+- **Python 3.11+** — [python.org/downloads](https://www.python.org/downloads/)
+- **Node.js 20 LTS** — [nodejs.org](https://nodejs.org/)
+- **Git** — you already have this if you're reading this after cloning
+
+### 2. Clone and enter the project
+
+```bash
+git clone https://github.com/<your-username>/campusgpt.git
+cd campusgpt
+```
+
+### 3. Start the database (Docker)
+
+```bash
+docker compose up -d
+docker ps
+```
+
+You should see a `pgvector/pgvector:pg16` container running. First run downloads the image (~a minute).
+
+Enable the vector extension (one-time per machine):
+
+```bash
+docker exec -it campusgpt-db-1 psql -U campusgpt -d campusgpt -c "CREATE EXTENSION IF NOT EXISTS vector;"
+```
+
+### 4. Set up the backend
+
+```bash
+cd backend
+python -m venv venv
+venv\Scripts\Activate.ps1        # Windows PowerShell
+# source venv/bin/activate       # Mac/Linux
+
+pip install -r requirements.txt
+```
+
+Create your own `backend/.env` file (this is never committed to git — each teammate creates their own). See the `.env` template in the main setup section above.
+
+```bash
+uvicorn app.main:app --reload --port 8000
+```
+
+### 5. Set up the frontend
+
+```bash
+cd ../frontend
+npm install
+npm run dev
+```
+
+### ⚠️ Common gotcha
+
+If you get `docker: command not found` or a `npipe`/daemon connection error, it means **Docker Desktop isn't open**, not that it's uninstalled. Open the Docker Desktop app from your Start Menu/Applications and wait for it to say "Engine running" before retrying any `docker` command.
+
 ## 📄 License
 
 MIT License
