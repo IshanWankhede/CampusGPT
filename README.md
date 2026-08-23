@@ -2,7 +2,7 @@
 
 A full-stack College/Campus Management System with an integrated AI assistant. CampusGPT combines a traditional ERP (attendance, timetable, assignments, notices, documents, analytics) with a **RAG-powered chatbot** that can answer questions from uploaded course material, query student data, or answer general questions — all routed intelligently based on intent.
 
-> 📄 See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the full system design and [`DB_SCHEMA.md`](./DB_SCHEMA.md) for the database schema.
+> 📄 See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the full system design, [`UML_DIAGRAMS.md`](./UML_DIAGRAMS.md) for class/UML and flow diagrams, and [`DB_SCHEMA.md`](./DB_SCHEMA.md) for the database schema.
 
 ---
 
@@ -75,6 +75,32 @@ campusgpt/
 ```
 
 Each backend feature module follows a consistent four-layer pattern: `router.py → schemas.py → service.py → repository.py`. See `ARCHITECTURE.md` for details.
+
+---
+
+## 📐 Diagrams
+
+All UML class diagrams and flow/sequence diagrams (auth, attendance, assignments, RAG ingestion, RAG query, chatbot routing, notifications, and state diagrams) live in [`UML_DIAGRAMS.md`](./UML_DIAGRAMS.md). A couple of the most-referenced ones:
+
+**System data flow**
+```mermaid
+flowchart LR
+    A[React Frontend] -->|REST / WebSocket| B[FastAPI Backend]
+    B --> C[(PostgreSQL + pgvector)]
+    B --> D[LLM API]
+```
+
+**Chatbot intent routing**
+```mermaid
+flowchart TD
+    A[User Question] --> B[AI Router]
+    B --> C[DB Query Tool]
+    B --> D[RAG Search]
+    B --> E[General LLM]
+    C --> F[Response]
+    D --> F
+    E --> F
+```
 
 ---
 
