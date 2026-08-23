@@ -3,6 +3,7 @@
 This document is the source of truth for CampusGPT's system design. Keep it updated as the project evolves, and feed the relevant section to your AI coding tool (Antigravity, GitHub Copilot, Claude, etc.) at the start of each build phase so generated code stays consistent.
 
 > For table-level schema details, see [`DB_SCHEMA.md`](./DB_SCHEMA.md).
+> For the full set of UML class diagrams, sequence diagrams, and flowcharts (including modules not diagrammed inline below — attendance, timetable, assignments, notices, notifications, and state diagrams), see [`UML_DIAGRAMS.md`](./UML_DIAGRAMS.md).
 
 ---
 
@@ -22,6 +23,8 @@ This document is the source of truth for CampusGPT's system design. Keep it upda
 12. [Build Roadmap (11 Phases)](#12-build-roadmap-11-phases)
 13. [Prompting AI Tools Per Module](#13-prompting-ai-tools-per-module)
 14. [Key Architectural Decisions](#14-key-architectural-decisions)
+
+📐 Companion file: [`UML_DIAGRAMS.md`](./UML_DIAGRAMS.md) — domain class diagram (UML) + flow/sequence diagrams for every module.
 
 ---
 
@@ -152,19 +155,27 @@ attendance/
 
 ### Login flow
 
-```
-React → POST /api/v1/auth/login → FastAPI
-  → verify password (bcrypt) → generate JWT (access + refresh)
-  → JWT returned to React → stored (memory / httpOnly cookie)
+```mermaid
+flowchart LR
+    A[React: submit login form] --> B[POST /api/v1/auth/login]
+    B --> C[Verify password - bcrypt]
+    C --> D[Generate JWT - access + refresh]
+    D --> E[Return tokens to React]
+    E --> F[Store tokens - memory / httpOnly cookie]
 ```
 
 ### Authenticated request flow
 
+```mermaid
+flowchart LR
+    A[React: Authorization Bearer token] --> B[FastAPI route]
+    B --> C[JWT verification dependency]
+    C --> D[Resolve current_user]
+    D --> E[Role check dependency]
+    E --> F[Endpoint logic runs]
 ```
-React → Authorization: Bearer <token> → FastAPI
-  → JWT verification (dependency) → resolve current_user
-  → role check (dependency) → endpoint logic runs
-```
+
+> 🔎 Full sequence diagrams (registration, login, RBAC guard, token refresh) are in [`UML_DIAGRAMS.md §2`](./UML_DIAGRAMS.md#2-auth--rbac-sequence-diagrams).
 
 ### Roles
 
@@ -184,29 +195,32 @@ RAG (Retrieval-Augmented Generation) lets the LLM answer using the campus's actu
 
 ### 6.1 Ingestion pipeline
 
-```
-Faculty uploads PDF → FastAPI receives file
-  → Store original file (disk / S3-compatible storage)
-  → Extract raw text (PyMuPDF)
-  → Clean text (strip headers/footers, fix whitespace)
-  → Chunk text (~500 tokens, with overlap)
-  → Generate embeddings per chunk (Sentence Transformers)
-  → Store chunk text + embedding vector + metadata in document_chunks
+```mermaid
+flowchart TD
+    A[Faculty uploads PDF] --> B[FastAPI receives file]
+    B --> C[Store original file - disk / S3-compatible]
+    C --> D[Extract raw text - PyMuPDF]
+    D --> E[Clean text - strip headers/footers, fix whitespace]
+    E --> F[Chunk text - ~500 tokens, with overlap]
+    F --> G[Generate embeddings per chunk - Sentence Transformers]
+    G --> H[(Store chunk text + vector + metadata in document_chunks)]
 ```
 
 ### 6.2 Query pipeline
 
-```
-User: "Explain Unit 3" → Chat API
-  → Embed the user's question (same embedding model)
-  → Vector similarity search in pgvector (cosine distance)
-  → Take top-k relevant chunks
-  → Build a context block (chunks + citations)
-  → Send context + question to the LLM
-  → Return answer + source references
+```mermaid
+flowchart TD
+    A["User: 'Explain Unit 3'"] --> B[Chat API]
+    B --> C[Embed the question - same embedding model]
+    C --> D[Vector similarity search in pgvector - cosine distance]
+    D --> E[Take top-k relevant chunks]
+    E --> F[Build context block - chunks + citations]
+    F --> G[Send context + question to the LLM]
+    G --> H[Return answer + source references]
 ```
 
 > Build this pipeline manually first (no LangChain) — see [Key Architectural Decisions](#14-key-architectural-decisions). Schema details in `DB_SCHEMA.md`.
+> 🔎 Sequence-level detail (including the per-chunk embedding loop) is in [`UML_DIAGRAMS.md §7–8`](./UML_DIAGRAMS.md#7-document-upload--rag-ingestion-pipeline).
 
 ---
 
@@ -214,16 +228,15 @@ User: "Explain Unit 3" → Chat API
 
 The chatbot never accesses every database table directly, and never sends every question through RAG. An intent router decides where a question goes:
 
-```
-                 User Question
-                      │
-                 AI Router (rules or a small LLM call)
-          ┌───────────┼────────────┐
-          ▼           ▼            ▼
-     DB Query Tool  RAG Search  General LLM
-          └───────────┼────────────┘
-                      ▼
-                  Response (+ sources if applicable)
+```mermaid
+flowchart TD
+    A[User Question] --> B[AI Router - rules or a small LLM call]
+    B --> C[DB Query Tool]
+    B --> D[RAG Search]
+    B --> E[General LLM]
+    C --> F[Response - + sources if applicable]
+    D --> F
+    E --> F
 ```
 
 | Example question | Routed to |
@@ -231,6 +244,8 @@ The chatbot never accesses every database table directly, and never sends every 
 | "What is my attendance?" | Database Tool (structured query) |
 | "Explain Unit 3 of DBMS." | RAG (search uploaded course documents) |
 | "Explain polymorphism." | General LLM |
+
+> 🔎 Full router sequence diagram (with the alt/else branching per intent) is in [`UML_DIAGRAMS.md §9`](./UML_DIAGRAMS.md#9-ai-chatbot-intent-router).
 
 ---
 
