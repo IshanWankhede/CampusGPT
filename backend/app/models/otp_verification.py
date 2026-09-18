@@ -17,12 +17,14 @@ class OtpVerification(Base):
     __tablename__ = "otp_verifications"
     __table_args__ = (
         Index("ix_otp_user_purpose_used", "user_id", "purpose", "is_used"),
+        Index("ix_otp_email_purpose_used", "email", "purpose", "is_used"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=True
     )
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     otp_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     purpose: Mapped[OtpPurpose] = mapped_column(
         Enum(OtpPurpose, name="otp_purpose", native_enum=True), nullable=False

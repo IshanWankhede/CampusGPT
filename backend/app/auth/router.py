@@ -30,8 +30,15 @@ def register(request: RegisterRequest, db: DbSession) -> User:
     try:
         return service.register_user(db, request)
     except ValueError as exc:
-        code = status.HTTP_409_CONFLICT if "exists" in str(exc) else status.HTTP_503_SERVICE_UNAVAILABLE
-        raise HTTPException(status_code=code, detail=str(exc)) from exc
+        message = str(exc)
+        code = (
+            status.HTTP_409_CONFLICT
+            if "exists" in message
+            else status.HTTP_400_BAD_REQUEST
+            if "verify your email" in message
+            else status.HTTP_503_SERVICE_UNAVAILABLE
+        )
+        raise HTTPException(status_code=code, detail=message) from exc
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -97,12 +104,10 @@ def send_otp(request: SendOtpRequest, db: DbSession) -> dict[str, str]:
                 if "Too many" in str(exc):
                     raise HTTPException(status_code=429, detail=str(exc)) from exc
         return {"message": "If an account with this email exists, a code has been sent."}
-    if user is None:
-        raise HTTPException(status_code=404, detail="No account found for this email")
-    if user.is_email_verified:
+    if user is not None and user.is_email_verified:
         raise HTTPException(status_code=409, detail="Already verified")
     try:
-        service.create_and_send_otp(db, user, request.purpose)
+        service.create_and_send_otp(db, user, request.purpose, email=request.email)
     except ValueError as exc:
         raise HTTPException(status_code=429, detail=str(exc)) from exc
     return {"message": "Verification code sent"}
@@ -111,13 +116,11 @@ def send_otp(request: SendOtpRequest, db: DbSession) -> dict[str, str]:
 @router.post("/verify-otp")
 def verify_otp(request: VerifyOtpRequest, db: DbSession) -> dict[str, str]:
     user = service.repository.get_user_by_email(db, request.email)
-    if user is None:
-        raise HTTPException(status_code=400, detail="Invalid or expired code")
     try:
-        service.verify_otp(db, user, request.otp, request.purpose)
+        service.verify_otp(db, user, request.otp, request.purpose, email=request.email)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    if request.purpose.value == "EMAIL_VERIFY":
+    if request.purpose.value == "EMAIL_VERIFY" and user is not None:
         user.is_email_verified = True
         db.commit()
     return {"message": "Code verified"}

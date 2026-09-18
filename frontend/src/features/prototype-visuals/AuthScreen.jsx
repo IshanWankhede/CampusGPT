@@ -1,5 +1,5 @@
 import { jsx, jsxs } from "react/jsx-runtime";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
@@ -21,6 +21,47 @@ const campusWallItems = [
   { image: "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?q=80&w=800&auto=format&fit=crop", title: "Curriculum Repository" },
   { image: "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=800&auto=format&fit=crop", title: "Campus Discovery Hub" }
 ];
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function InlineOtp({ value, onChange, disabled, status, onComplete }) {
+  const digits = value.padEnd(6, " ").slice(0, 6).split("");
+  const inputRefs = useRef([]);
+  return /* @__PURE__ */ jsxs("div", { className: "flex gap-2", children: digits.map((digit, index) =>
+    /* @__PURE__ */ jsx("input", {
+      ref: (element) => {
+        inputRefs.current[index] = element;
+      },
+      value: digit.trim(),
+      maxLength: 1,
+      inputMode: "numeric",
+      disabled,
+      onChange: (event) => {
+        const next = event.target.value.replace(/\D/g, "").slice(-1);
+        const nextValue = value.slice(0, index) + next + value.slice(index + 1);
+        onChange(nextValue);
+        if (next) {
+          if (nextValue.length === 6) {
+            onComplete(nextValue);
+          } else {
+            inputRefs.current[index + 1]?.focus();
+          }
+        }
+      },
+      onKeyDown: (event) => {
+        if (event.key === "Backspace" && !digits[index] && index > 0) {
+          inputRefs.current[index - 1]?.focus();
+        }
+      },
+      className: `w-10 h-11 text-center text-lg font-semibold bg-[#141416] text-white rounded-[10px] border transition-colors ${
+        status === "success" ? "border-green-500/60 bg-green-500/10 shadow-[0_0_14px_rgba(34,197,94,0.16)]" :
+        status === "error" ? "border-red-500/60 bg-red-500/10 animate-[shake_0.35s_ease-in-out]" :
+        "border-white/10 focus:border-white/40"
+      }`,
+      key: index
+    }, index)
+  ) });
+}
+
 const AuthScreen = ({
   onSelectRole,
   onNavigate = (_s) => {
@@ -29,7 +70,7 @@ const AuthScreen = ({
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, register } = useAuth();
+  const { login, register, sendOtp, verifyOtp } = useAuth();
   const [authMode, setAuthMode] = useState("login");
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -45,6 +86,56 @@ const AuthScreen = ({
   const [showSignupConfirmPassword, setShowSignupConfirmPassword] = useState(false);
   const [requestError, setRequestError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [otpStatus, setOtpStatus] = useState("");
+  const [otpError, setOtpError] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpSending, setOtpSending] = useState(false);
+  const [resendSeconds, setResendSeconds] = useState(0);
+  const [emailVerified, setEmailVerified] = useState(false);
+  const validSignupEmail = emailPattern.test(signupEmail.trim());
+  useEffect(() => {
+    if (!resendSeconds) return undefined;
+    const timer = setInterval(() => setResendSeconds((seconds) => Math.max(0, seconds - 1)), 1000);
+    return () => clearInterval(timer);
+  }, [resendSeconds]);
+  const handleSignupEmailChange = (event) => {
+    const nextEmail = event.target.value;
+    setSignupEmail(nextEmail);
+    setOtp("");
+    setOtpStatus("");
+    setOtpError("");
+    setOtpSent(false);
+    setEmailVerified(false);
+  };
+  const handleSendSignupOtp = async () => {
+    setOtpSending(true);
+    setOtpError("");
+    try {
+      await sendOtp(signupEmail.trim(), "EMAIL_VERIFY");
+      setOtpSent(true);
+      setResendSeconds(60);
+    } catch (error) {
+      setOtpError(error.message);
+    } finally {
+      setOtpSending(false);
+    }
+  };
+  const handleVerifySignupOtp = async (code) => {
+    setOtpError("");
+    try {
+      await verifyOtp(signupEmail.trim(), code, "EMAIL_VERIFY");
+      setOtpStatus("success");
+      setEmailVerified(true);
+    } catch (error) {
+      setOtpStatus("error");
+      setOtpError(error.message);
+      setTimeout(() => {
+        setOtp("");
+        setOtpStatus("");
+      }, 600);
+    }
+  };
   const handleBack = () => {
     if (onBackToLanding) {
       onBackToLanding();
@@ -57,6 +148,10 @@ const AuthScreen = ({
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setRequestError("");
+    if (!emailVerified) {
+      setRequestError("Please verify your email before creating an account.");
+      return;
+    }
     setSubmitting(true);
     try {
       await login(loginEmail.trim(), loginPassword);
@@ -77,7 +172,8 @@ const AuthScreen = ({
     setSubmitting(true);
     try {
       await register(signupName.trim(), signupEmail.trim(), signupPassword, signupRole.toUpperCase());
-      navigate(`/auth/verify-email?email=${encodeURIComponent(signupEmail.trim())}`, { replace: true });
+      await login(signupEmail.trim(), signupPassword);
+      navigate("/app", { replace: true });
     } catch (error) {
       setRequestError(error.message);
     } finally {
@@ -344,13 +440,38 @@ const AuthScreen = ({
                               type: "email",
                               required: true,
                               value: signupEmail,
-                              onChange: (e) => setSignupEmail(e.target.value),
+                              onChange: handleSignupEmailChange,
                               placeholder: "e.g. aarav.sharma@campus.edu",
                               className: "w-full bg-[#141416] text-white border border-white/10 rounded-[14px] px-4 py-3.5 text-sm placeholder:text-[#8e8e8e] focus:outline-none focus:border-white/40 focus:ring-1 focus:ring-white/20 transition-all"
                             }
                           ),
                           /* @__PURE__ */ jsx("div", { className: "absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none text-xs", children: /* @__PURE__ */ jsx("i", { className: "fa-regular fa-envelope" }) })
-                        ] })
+                        ] }),
+                        authMode === "signup" && validSignupEmail && !otpSent ? /* @__PURE__ */ jsx(motion.div, {
+                          initial: { opacity: 0, y: -6 },
+                          animate: { opacity: 1, y: 0 },
+                          className: "mt-2",
+                          children: /* @__PURE__ */ jsx("button", {
+                            type: "button",
+                            disabled: otpSending,
+                            onClick: handleSendSignupOtp,
+                            className: "rounded-full border border-white/15 bg-[#141416] px-3.5 py-1.5 text-[11px] text-neutral-300 hover:text-white hover:border-white/35 transition-colors disabled:opacity-50",
+                            children: otpSending ? "Sending..." : "Verify Email"
+                          })
+                        }) : null,
+                        authMode === "signup" && validSignupEmail && otpSent ? /* @__PURE__ */ jsx(motion.div, {
+                          initial: { opacity: 0, y: -6 },
+                          animate: { opacity: 1, y: 0 },
+                          className: "mt-2 space-y-1.5",
+                          children: [
+                            /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between text-[10px] text-neutral-500", children: [
+                              /* @__PURE__ */ jsx("span", { children: `Code sent to ${signupEmail}` }),
+                              !emailVerified && resendSeconds === 0 ? /* @__PURE__ */ jsx("button", { type: "button", onClick: handleSendSignupOtp, className: "text-white hover:text-neutral-300 underline", children: "Resend code" }) : !emailVerified ? /* @__PURE__ */ jsx("span", { children: `Resend in ${resendSeconds}s` }) : null
+                            ] }),
+                            /* @__PURE__ */ jsx(InlineOtp, { value: otp, onChange: setOtp, disabled: emailVerified, status: otpStatus, onComplete: handleVerifySignupOtp }),
+                            otpStatus === "success" ? /* @__PURE__ */ jsxs("p", { className: "text-[10px] text-green-400", children: [/* @__PURE__ */ jsx("i", { className: "fa-solid fa-check mr-1" }), "Email verified"] }) : otpError ? /* @__PURE__ */ jsx("p", { className: "text-[10px] text-red-400", children: otpError }) : null
+                          ]
+                        }) : null
                       ] }),
                       /* @__PURE__ */ jsxs(motion.div, { variants: itemVariants, children: [
                         /* @__PURE__ */ jsx("label", { className: "block text-xs font-medium text-[var(--muted)] mb-1.5 pl-0.5", children: "Select University Role" }),

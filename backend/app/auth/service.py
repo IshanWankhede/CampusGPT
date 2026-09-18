@@ -26,17 +26,21 @@ def verify_password(password: str, hashed_password: str) -> bool:
 
 
 def register_user(db: Session, request: RegisterRequest) -> User:
-    if repository.get_user_by_email(db, request.email):
+    email = request.email.lower()
+    if repository.get_user_by_email(db, email):
         raise ValueError("A user with this email already exists")
+    if not repository.has_recent_used_email_otp(db, email):
+        raise ValueError("Please verify your email before creating an account")
     try:
         user = repository.create_user(
             db,
-            email=request.email,
+            email=email,
             hashed_password=hash_password(request.password),
             full_name=request.full_name,
             role=request.role,
         )
-        create_and_send_otp(db, user, OtpPurpose.EMAIL_VERIFY)
+        user.is_email_verified = True
+        db.commit()
         return user
     except IntegrityError:
         db.rollback()
@@ -54,25 +58,37 @@ def generate_otp() -> str:
     return f"{secrets.randbelow(1_000_000):06d}"
 
 
-def create_and_send_otp(db: Session, user: User, purpose: OtpPurpose) -> None:
-    if repository.count_recent_otps(db, user.id, purpose) >= 3:
+def create_and_send_otp(
+    db: Session, user: User | None, purpose: OtpPurpose, *, email: str | None = None
+) -> None:
+    target_email = (email or (user.email if user else "")).lower()
+    if not target_email:
+        raise ValueError("An email address is required")
+    if repository.count_recent_otps(
+        db, purpose, user_id=user.id if user else None, email=target_email
+    ) >= 3:
         raise ValueError("Too many requests, please wait before requesting another code")
     otp = generate_otp()
     repository.create_otp(
         db,
-        user_id=user.id,
+        user_id=user.id if user else None,
+        email=target_email,
         otp_hash=hash_password(otp),
         purpose=purpose,
         expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
     )
     if purpose == OtpPurpose.EMAIL_VERIFY:
-        send_email(user.email, "Verify your CampusGPT email", verification_email(otp))
+        send_email(target_email, "Verify your CampusGPT email", verification_email(otp))
     else:
-        send_email(user.email, "Reset your CampusGPT password", reset_email(otp))
+        send_email(target_email, "Reset your CampusGPT password", reset_email(otp))
 
 
-def verify_otp(db: Session, user: User, otp: str, purpose: OtpPurpose) -> bool:
-    record = repository.get_latest_active_otp(db, user.id, purpose)
+def verify_otp(
+    db: Session, user: User | None, otp: str, purpose: OtpPurpose, *, email: str | None = None
+) -> bool:
+    record = repository.get_latest_active_otp(
+        db, purpose, user_id=user.id if user else None, email=(email or user.email).lower() if (email or user) else None
+    )
     now = datetime.now(timezone.utc)
     if record is None or record.expires_at <= now:
         raise ValueError("Invalid or expired code")
