@@ -2,7 +2,7 @@
 
 A full-stack College/Campus Management System with an integrated AI assistant. CampusGPT combines a traditional ERP (attendance, timetable, assignments, notices, documents, analytics) with a **RAG-powered chatbot** that can answer questions from uploaded course material, query student data, or answer general questions — all routed intelligently based on intent.
 
-> 📄 See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the full system design, [`UML_DIAGRAMS.md`](./UML_DIAGRAMS.md) for class/UML and flow diagrams, and [`DB_SCHEMA.md`](./DB_SCHEMA.md) for the database schema.
+> 📄 See [`ARCHITECTURE.md`](./Architecture/ARCHITECTURE.md) for the full system design, [`UML_DIAGRAMS.md`](./Architecture/UML_DIAGRAMS.md) for class/UML and flow diagrams, and [`DB_SCHEMA.md`](./Architecture/DB_SCHEMA.md) for the database schema.
 
 ---
 
@@ -70,17 +70,26 @@ campusgpt/
 │       ├── analytics/
 │       └── notifications/
 │
+├── Architecture/
+│   ├── ARCHITECTURE.md
+│   ├── DB_SCHEMA.md
+│   ├── DESIGN.md
+│   ├── PHASES.md
+│   ├── PRD.md
+│   ├── REQUIREMENTS.md
+│   └── UML_DIAGRAMS.md
+│
 ├── docker-compose.yml
 └── .env
 ```
 
-Each backend feature module follows a consistent four-layer pattern: `router.py → schemas.py → service.py → repository.py`. See `ARCHITECTURE.md` for details.
+Each backend feature module follows a consistent four-layer pattern: `router.py → schemas.py → service.py → repository.py`. See [`ARCHITECTURE.md`](./Architecture/ARCHITECTURE.md) for details.
 
 ---
 
 ## 📐 Diagrams
 
-All UML class diagrams and flow/sequence diagrams (auth, attendance, assignments, RAG ingestion, RAG query, chatbot routing, notifications, and state diagrams) live in [`UML_DIAGRAMS.md`](./UML_DIAGRAMS.md). A couple of the most-referenced ones:
+All UML class diagrams and flow/sequence diagrams (auth, attendance, assignments, RAG ingestion, RAG query, chatbot routing, notifications, and state diagrams) live in [`UML_DIAGRAMS.md`](./Architecture/UML_DIAGRAMS.md). A couple of the most-referenced ones:
 
 **System data flow**
 ```mermaid
@@ -176,7 +185,7 @@ ENV=development
 
 ## 🗺️ Build Roadmap
 
-The project is designed to be built in 11 phases, from foundation to production. Full detail in `ARCHITECTURE.md`, summarized here:
+The project is designed to be built in 11 phases, from foundation to production. Full detail in [`ARCHITECTURE.md`](./Architecture/ARCHITECTURE.md), summarized here:
 
 1. **Foundation** — Git, FastAPI, React, PostgreSQL wired together
 2. **Authentication** — Register, login, JWT, RBAC
@@ -194,7 +203,7 @@ The project is designed to be built in 11 phases, from foundation to production.
 
 ## 📖 API Overview
 
-All routes are versioned under `/api/v1/`. Full endpoint list in `ARCHITECTURE.md`. Highlights:
+All routes are versioned under `/api/v1/`. Full endpoint list in [`ARCHITECTURE.md`](./Architecture/ARCHITECTURE.md). Highlights:
 
 ```
 POST /api/v1/auth/login
