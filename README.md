@@ -160,6 +160,26 @@ npm run dev
 
 Frontend runs at `http://localhost:5173`.
 
+### Run the complete stack with Docker
+
+Docker Compose can build and run the frontend, backend, and `campusgpt_db` PostgreSQL/pgvector database together:
+
+```bash
+docker compose up --build
+```
+
+Open the frontend at `http://localhost:5173`. The backend API is available at
+`http://localhost:8000`, and the database is available from the host at
+`localhost:5433`. To stop the stack, press `Ctrl+C` or run:
+
+```bash
+docker compose down
+```
+
+The database data is kept in the `pgdata` Docker volume. Add a root `.env` file
+to override values such as `JWT_SECRET_KEY` and `LLM_API_KEY`; do not commit
+that file.
+
 ---
 
 ## 🔑 Environment Variables

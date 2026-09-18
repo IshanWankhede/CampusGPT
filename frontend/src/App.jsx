@@ -5,7 +5,7 @@ function App() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetch("http://localhost:8000/health")
+    fetch("/health")
       .then((res) => res.json())
       .then((data) => setHealth(data))
       .catch((err) => setError(err.message));
