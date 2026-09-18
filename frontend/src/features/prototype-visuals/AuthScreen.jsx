@@ -36,14 +36,15 @@ function InlineOtp({ value, onChange, disabled, status, onComplete }) {
       inputMode: "numeric",
       disabled,
       onChange: (event) => {
-        const next = event.target.value.replace(/\D/g, "").slice(-1);
-        const nextValue = value.slice(0, index) + next + value.slice(index + 1);
+        const entered = event.target.value.replace(/\D/g, "");
+        const next = entered.slice(-1);
+        const nextValue = `${value.slice(0, index)}${next}${value.slice(index + 1)}`.slice(0, 6);
         onChange(nextValue);
         if (next) {
           if (nextValue.length === 6) {
             onComplete(nextValue);
           } else {
-            inputRefs.current[index + 1]?.focus();
+            window.requestAnimationFrame(() => inputRefs.current[index + 1]?.focus());
           }
         }
       },
@@ -148,10 +149,6 @@ const AuthScreen = ({
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setRequestError("");
-    if (!emailVerified) {
-      setRequestError("Please verify your email before creating an account.");
-      return;
-    }
     setSubmitting(true);
     try {
       await login(loginEmail.trim(), loginPassword);
@@ -165,6 +162,10 @@ const AuthScreen = ({
   const handleSignupSubmit = async (e) => {
     e.preventDefault();
     setRequestError("");
+    if (!emailVerified) {
+      setRequestError("Please verify your email before creating an account.");
+      return;
+    }
     if (signupPassword !== signupConfirmPassword) {
       setRequestError("Passwords do not match.");
       return;
@@ -268,7 +269,10 @@ const AuthScreen = ({
                   {
                     type: "button",
                     id: "tab-sign-in",
-                    onClick: () => setAuthMode("login"),
+                    onClick: () => {
+                      setRequestError("");
+                      setAuthMode("login");
+                    },
                     className: `px-5 py-2 rounded-full text-xs font-medium transition-all cursor-pointer ${authMode === "login" ? "bg-white text-black font-semibold shadow-sm" : "text-[var(--muted)] hover:text-white"}`,
                     children: "Sign In"
                   }
@@ -278,7 +282,10 @@ const AuthScreen = ({
                   {
                     type: "button",
                     id: "tab-sign-up",
-                    onClick: () => setAuthMode("signup"),
+                    onClick: () => {
+                      setRequestError("");
+                      setAuthMode("signup");
+                    },
                     className: `px-5 py-2 rounded-full text-xs font-medium transition-all cursor-pointer ${authMode === "signup" ? "bg-white text-black font-semibold shadow-sm" : "text-[var(--muted)] hover:text-white"}`,
                     children: "Sign Up"
                   }
@@ -423,7 +430,7 @@ const AuthScreen = ({
                               required: true,
                               value: signupName,
                               onChange: (e) => setSignupName(e.target.value),
-                              placeholder: "e.g. Aarav Sharma",
+                              placeholder: "xyz",
                               className: "w-full bg-[#141416] text-white border border-white/10 rounded-[14px] px-4 py-3.5 text-sm placeholder:text-[#8e8e8e] focus:outline-none focus:border-white/40 focus:ring-1 focus:ring-white/20 transition-all"
                             }
                           ),
@@ -441,7 +448,7 @@ const AuthScreen = ({
                               required: true,
                               value: signupEmail,
                               onChange: handleSignupEmailChange,
-                              placeholder: "e.g. aarav.sharma@campus.edu",
+                              placeholder: "xyz@gmail.com",
                               className: "w-full bg-[#141416] text-white border border-white/10 rounded-[14px] px-4 py-3.5 text-sm placeholder:text-[#8e8e8e] focus:outline-none focus:border-white/40 focus:ring-1 focus:ring-white/20 transition-all"
                             }
                           ),

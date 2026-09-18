@@ -1,75 +1,56 @@
-# 🏗️ CampusGPT
+# CampusGPT
 
-A full-stack College/Campus Management System with an integrated AI assistant. CampusGPT combines a traditional ERP (attendance, timetable, assignments, notices, documents, analytics) with a **RAG-powered chatbot** that can answer questions from uploaded course material, query student data, or answer general questions — all routed intelligently based on intent.
+CampusGPT is a full-stack campus management application with a React frontend,
+FastAPI backend, PostgreSQL database, and `pgvector` support. The current
+implementation is the foundation and authentication phase. The ERP, dashboards,
+document RAG, chatbot, and analytics modules are planned in later phases.
 
-> 📄 See [`ARCHITECTURE.md`](./Architecture/ARCHITECTURE.md) for the full system design, [`UML_DIAGRAMS.md`](./Architecture/UML_DIAGRAMS.md) for class/UML and flow diagrams, and [`DB_SCHEMA.md`](./Architecture/DB_SCHEMA.md) for the database schema.
+## Current integrated functionality
 
----
+- React + Vite frontend with the CampusGPT landing page and authentication UI.
+- FastAPI backend with SQLAlchemy and Alembic migrations.
+- PostgreSQL 16 with the `pgvector` extension.
+- JWT access and refresh tokens.
+- Password hashing with bcrypt.
+- Student, Faculty, and Admin roles with reusable server-side RBAC dependencies.
+- Signup email verification with Resend OTP emails.
+- Inline six-digit signup OTP verification:
+  - verification starts before account creation;
+  - OTP boxes advance automatically while typing;
+  - resend countdown;
+  - green locked success state;
+  - red error state with backend error messages.
+- Password reset through email OTP.
+- Protected placeholder application page after login.
+- Docker Compose stack containing the frontend, backend, and `campusgpt_db`.
+- Persistent PostgreSQL data through the `pgdata` Docker volume.
 
-## ✨ Features
+## Architecture and database documentation
 
-- 🔐 JWT authentication with role-based access control (Student / Faculty / Admin)
-- 📊 Attendance tracking with per-subject and per-student analytics
-- 📅 Timetable management
-- 📝 Assignments with submission tracking
-- 📢 Notices/announcements
-- 📄 Document upload and management
-- 🤖 **CampusGPT AI Assistant** — RAG over course documents, database-aware Q&A, and general LLM chat, all through one intent router
-- 📈 Role-specific analytics dashboards
-- 🔔 Notifications
+The design and implementation source documents are in the
+[`Architecture/`](./Architecture/) directory:
 
----
+- [`ARCHITECTURE.md`](./Architecture/ARCHITECTURE.md) — system architecture,
+  authentication, RBAC, API conventions, and future modules.
+- [`DB_SCHEMA.md`](./Architecture/DB_SCHEMA.md) — database tables and
+  relationships.
+- [`DESIGN.md`](./Architecture/DESIGN.md) — visual design tokens and UI rules.
+- [`PHASES.md`](./Architecture/PHASES.md) — delivery phases and checklists.
+- [`PRD.md`](./Architecture/PRD.md) — product requirements.
+- [`REQUIREMENTS.md`](./Architecture/REQUIREMENTS.md) — functional requirements.
+- [`UML_DIAGRAMS.md`](./Architecture/UML_DIAGRAMS.md) — class, flow, and
+  sequence diagrams.
 
-## 🧱 Tech Stack
+Backend feature modules follow the four-layer pattern:
 
-| Layer | Technology |
-|---|---|
-| Frontend | React 18, Vite, Tailwind CSS |
-| Backend | FastAPI (Python 3.11+) |
-| ORM / Migrations | SQLAlchemy 2.0, Alembic |
-| Database | PostgreSQL 15/16 + `pgvector` |
-| Auth | JWT (access + refresh), bcrypt |
-| Document parsing | PyMuPDF |
-| Embeddings | Sentence Transformers |
-| LLM | Claude API (or any LLM API) |
-| Realtime | WebSocket / Server-Sent Events |
-| Infra | Docker, Docker Compose, Nginx, GitHub Actions |
-
----
-
-## 📁 Project Structure
-
+```text
+router.py -> schemas.py -> service.py -> repository.py
 ```
-campusgpt/
-├── frontend/
-│   └── src/
-│       ├── components/{ui, common, navbar, sidebar, charts}/
-│       ├── pages/{auth, student, faculty, admin}/
-│       ├── features/{attendance, timetable, assignments,
-│       │             notices, documents, chatbot, analytics}/
-│       ├── hooks/
-│       ├── services/{api.js, auth.js, chatbot.js}
-│       ├── context/
-│       ├── routes/
-│       ├── utils/
-│       └── constants/
-│
-├── backend/
-│   └── app/
-│       ├── core/{config.py, security.py, dependencies.py, logging.py}
-│       ├── database/{session.py, base.py, models/}
-│       ├── auth/
-│       ├── users/
-│       ├── attendance/
-│       ├── timetable/
-│       ├── assignments/
-│       ├── notices/
-│       ├── documents/
-│       ├── rag/
-│       ├── chat/
-│       ├── analytics/
-│       └── notifications/
-│
+
+## Project structure
+
+```text
+CampusGPT/
 ├── Architecture/
 │   ├── ARCHITECTURE.md
 │   ├── DB_SCHEMA.md
@@ -78,79 +59,206 @@ campusgpt/
 │   ├── PRD.md
 │   ├── REQUIREMENTS.md
 │   └── UML_DIAGRAMS.md
-│
+├── backend/
+│   ├── alembic/
+│   │   └── versions/
+│   ├── app/
+│   │   ├── auth/
+│   │   ├── core/
+│   │   ├── database/
+│   │   └── models/
+│   ├── .env                 # local secrets; never commit
+│   ├── Dockerfile
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── context/
+│   │   ├── features/
+│   │   └── routes/
+│   ├── Dockerfile
+│   └── package.json
 ├── docker-compose.yml
-└── .env
+└── .env.example
 ```
 
-Each backend feature module follows a consistent four-layer pattern: `router.py → schemas.py → service.py → repository.py`. See [`ARCHITECTURE.md`](./Architecture/ARCHITECTURE.md) for details.
+## Technology stack
 
----
+| Layer | Technology |
+|---|---|
+| Frontend | React, Vite, Tailwind CSS, React Router |
+| Visual effects | Motion, OGL, Font Awesome |
+| Backend | FastAPI, Python 3.11+ |
+| Database access | SQLAlchemy 2, Alembic |
+| Database | PostgreSQL 16 + pgvector |
+| Authentication | JWT, bcrypt, role-based access control |
+| Email | Resend |
+| Deployment | Docker, Docker Compose, Nginx |
 
-## 📐 Diagrams
+## Run on a new laptop with Docker (recommended)
 
-All UML class diagrams and flow/sequence diagrams (auth, attendance, assignments, RAG ingestion, RAG query, chatbot routing, notifications, and state diagrams) live in [`UML_DIAGRAMS.md`](./Architecture/UML_DIAGRAMS.md). A couple of the most-referenced ones:
+These steps work for Windows, macOS, and Linux. On Windows, use PowerShell.
 
-**System data flow**
-```mermaid
-flowchart LR
-    A[React Frontend] -->|REST / WebSocket| B[FastAPI Backend]
-    B --> C[(PostgreSQL + pgvector)]
-    B --> D[LLM API]
-```
+### 1. Install prerequisites
 
-**Chatbot intent routing**
-```mermaid
-flowchart TD
-    A[User Question] --> B[AI Router]
-    B --> C[DB Query Tool]
-    B --> D[RAG Search]
-    B --> E[General LLM]
-    C --> F[Response]
-    D --> F
-    E --> F
-```
+Install:
 
----
+- Git: <https://git-scm.com/downloads>
+- Docker Desktop: <https://www.docker.com/products/docker-desktop/>
 
-## 🚀 Getting Started
+Open Docker Desktop and wait until the Docker Engine is running.
 
-### Prerequisites
-
-- Git
-- Python 3.11+
-- Node.js 20 LTS
-- Docker Desktop (for PostgreSQL + pgvector)
-- An LLM API key (e.g. from [console.anthropic.com](https://console.anthropic.com))
-
-### 1. Clone and set up the database
+### 2. Clone the repository
 
 ```bash
-git clone https://github.com/<your-username>/campusgpt.git
-cd campusgpt
-
-docker compose up -d
-docker exec -it <db_container_name> psql -U campusgpt -d campusgpt \
-  -c "CREATE EXTENSION IF NOT EXISTS vector;"
+git clone https://github.com/IshanWankhede/CampusGPT.git
+cd CampusGPT
 ```
 
-### 2. Backend setup
+### 3. Create the local backend environment file
+
+Copy the example file:
+
+```bash
+# Windows PowerShell
+Copy-Item .env.example backend\.env
+
+# macOS/Linux
+cp .env.example backend/.env
+```
+
+Open `backend/.env` and set:
+
+```env
+JWT_SECRET_KEY=use-a-long-random-secret
+RESEND_API_KEY=your_resend_api_key
+EMAIL_FROM=your-verified-sender@example.com
+```
+
+`EMAIL_FROM` must be a sender/domain accepted by your Resend account. Do not
+commit `backend/.env` or paste the API key into GitHub.
+
+### 4. Build and start all services
+
+The `--env-file` option is important because Docker Compose reads the Resend
+and JWT values from `backend/.env`:
+
+```bash
+docker compose --env-file backend/.env up --build -d
+```
+
+On Windows PowerShell the equivalent path is:
+
+```powershell
+docker compose --env-file backend\.env up --build -d
+```
+
+The first build can take several minutes because dependencies are downloaded.
+The backend uses CPU-only PyTorch to avoid downloading CUDA packages.
+
+### 5. Check that everything is running
+
+```bash
+docker compose ps
+docker compose logs --tail 100 backend
+```
+
+Expected services:
+
+| Service | URL/connection |
+|---|---|
+| Frontend | <http://localhost:5173> |
+| Backend API | <http://localhost:8000> |
+| Swagger docs | <http://localhost:8000/docs> |
+| Health check | <http://localhost:8000/health> |
+| PostgreSQL from host | `localhost:5433` |
+| PostgreSQL inside Compose | `campusgpt_db:5432` |
+
+Migrations run automatically when the backend container starts. The current
+migration chain creates users, OTP verification records, and support for
+pre-registration email OTPs.
+
+### 6. Stop, restart, and rebuild
+
+```bash
+# Stop containers but keep database data
+docker compose down
+
+# Start existing images again
+docker compose --env-file backend/.env up -d
+
+# Rebuild after source changes
+docker compose --env-file backend/.env up --build -d
+
+# Stop and delete the database volume (destructive: deletes local data)
+docker compose down -v
+```
+
+## Connect the database in pgAdmin
+
+Start the Docker stack first, then create a new server in pgAdmin with:
+
+| pgAdmin field | Value |
+|---|---|
+| Name | `CampusGPT Docker` |
+| Host name/address | `localhost` |
+| Port | `5433` |
+| Maintenance database | `campusgpt` |
+| Username | `campusgpt` |
+| Password | `campusgpt_dev` |
+
+The database is persisted in the Docker volume named `pgdata`. To inspect
+migrations from the backend container:
+
+```bash
+docker compose exec backend alembic current
+docker compose exec backend alembic history
+```
+
+## Run without Docker for frontend/backend development
+
+Docker is still recommended for PostgreSQL because the project requires
+PostgreSQL with `pgvector`.
+
+### 1. Start only the database
+
+```bash
+docker compose --env-file backend/.env up -d campusgpt_db
+```
+
+### 2. Install and run the backend
+
+Create `backend/.env` as described above, then use:
 
 ```bash
 cd backend
+
+# Windows PowerShell
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+
+# macOS/Linux
 python3 -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
+source venv/bin/activate
 
 pip install -r requirements.txt
-cp .env.example .env            # then fill in your values
+```
 
+For a host-run backend, set the database URL to port `5433`:
+
+```env
+DATABASE_URL=postgresql+psycopg2://campusgpt:campusgpt_dev@localhost:5433/campusgpt
+```
+
+Run migrations and the API:
+
+```bash
 alembic upgrade head
 uvicorn app.main:app --reload --port 8000
 ```
 
-Backend runs at `http://localhost:8000` — API docs at `http://localhost:8000/docs`.
+### 3. Install and run the frontend
 
-### 3. Frontend setup
+In another terminal:
 
 ```bash
 cd frontend
@@ -158,160 +266,147 @@ npm install
 npm run dev
 ```
 
-Frontend runs at `http://localhost:5173`.
+The frontend runs at <http://localhost:5173> and proxies `/api` requests to
+the backend during development.
 
-### Run the complete stack with Docker
+## Authentication flow
 
-Docker Compose can build and run the frontend, backend, and `campusgpt_db` PostgreSQL/pgvector database together:
+### Available authentication endpoints
 
-```bash
-docker compose up --build
+All authentication routes are under `/api/v1/auth`:
+
+```text
+POST /register
+POST /login
+POST /refresh
+POST /logout
+GET  /me
+GET  /admin-test
+POST /send-otp
+POST /verify-otp
+POST /forgot-password
+POST /reset-password
 ```
 
-Open the frontend at `http://localhost:5173`. The backend API is available at
-`http://localhost:8000`, and the database is available from the host at
-`localhost:5433`. To stop the stack, press `Ctrl+C` or run:
+### Signup
 
-```bash
-docker compose down
-```
+1. Enter a name, email, role, and password.
+2. A valid email shows the inline **Verify Email** button.
+3. The backend sends a six-digit `EMAIL_VERIFY` OTP through Resend.
+4. Entering all six digits verifies the email automatically.
+5. The backend stores the verification proof against the normalized email.
+6. Account creation is rejected server-side unless a matching, used, and
+   non-expired OTP exists.
+7. The new account is created with `is_email_verified=true`.
 
-The database data is kept in the `pgdata` Docker volume. Add a root `.env` file
-to override values such as `JWT_SECRET_KEY` and `LLM_API_KEY`; do not commit
-that file.
+The frontend verification state is not trusted as security proof.
 
----
+### Login and protected page
 
-## 🔑 Environment Variables
+Successful login returns access and refresh tokens. The frontend stores the
+session locally, checks `/me` when the app loads, and opens the protected
+placeholder page at `/app`. Signing out clears the local session and returns
+to the landing page.
 
-Create `backend/.env`:
+## Environment variables
+
+The tracked [`.env.example`](./.env.example) contains placeholders only.
+Create the real ignored file at `backend/.env`:
 
 ```env
-DATABASE_URL=postgresql://campusgpt:campusgpt_dev@localhost:5432/campusgpt
-JWT_SECRET_KEY=replace_with_a_long_random_string
-JWT_ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-REFRESH_TOKEN_EXPIRE_DAYS=7
-LLM_API_KEY=your_llm_api_key_here
+JWT_SECRET_KEY=change-this-secret-in-production
+RESEND_API_KEY=your_resend_api_key_here
+EMAIL_FROM=onboarding@resend.dev
+```
+
+Docker Compose supplies the database URL and other defaults to the backend
+container. Optional variables supported by `docker-compose.yml` include:
+
+```env
+LLM_API_KEY=
 LLM_MODEL=claude-sonnet-5
 EMBEDDING_MODEL=all-MiniLM-L6-v2
 CORS_ORIGINS=http://localhost:5173
 ENV=development
 ```
 
-> ⚠️ Never commit `.env`. It's already listed in `.gitignore`.
+Never commit real API keys, passwords, or `.env` files.
 
----
+## Troubleshooting
 
-## 🗺️ Build Roadmap
+### Docker command cannot connect
 
-The project is designed to be built in 11 phases, from foundation to production. Full detail in [`ARCHITECTURE.md`](./Architecture/ARCHITECTURE.md), summarized here:
-
-1. **Foundation** — Git, FastAPI, React, PostgreSQL wired together
-2. **Authentication** — Register, login, JWT, RBAC
-3. **Core ERP** — Users → Departments → Students/Faculty → Subjects → Timetable → Attendance → Assignments → Notices
-4. **Dashboards** — Student / Faculty / Admin UIs
-5. **Documents** — Upload, storage, text extraction
-6. **RAG** — Chunking, embeddings, pgvector search, LLM context building
-7. **AI Chatbot** — Intent router combining DB tools + RAG + general LLM
-8. **Analytics** — Charts and reporting per role
-9. **Face Recognition** *(optional)*
-10. **Advanced AI** *(optional)* — voice, recommendations, study planner
-11. **Production** — Docker, Nginx, HTTPS, CI/CD, monitoring, backups
-
----
-
-## 📖 API Overview
-
-All routes are versioned under `/api/v1/`. Full endpoint list in [`ARCHITECTURE.md`](./Architecture/ARCHITECTURE.md). Highlights:
-
-```
-POST /api/v1/auth/login
-GET  /api/v1/students/{id}/attendance
-POST /api/v1/attendance/records
-POST /api/v1/documents/upload
-POST /api/v1/rag/query
-POST /api/v1/chat
-GET  /api/v1/analytics/admin
-```
-
----
-
-## 🔐 Security Notes
-
-- All protected endpoints verify JWT + role server-side — never trust the frontend to hide UI as the only guard
-- Passwords hashed with bcrypt; JWTs carry identity claims only, never sensitive data
-- File uploads are validated by type/size server-side; client-supplied filenames are never trusted directly
-- Secrets live in environment variables only
-
----
-
-## 🤝 Contributing
-
-This project is built incrementally, module by module (see roadmap above). When adding a new backend module, follow the existing `router/schemas/service/repository` pattern and the naming conventions already used in the codebase.
-
-## 👥 Team Setup (New Contributor Checklist)
-
-If you're cloning this repo for the first time, here's what you need installed on **your own machine** before anything will run. The code and config files come from git — but the tools to actually run them (Docker, Python, Node) are a one-time local install per person, per machine.
-
-### 1. Install these first (one-time)
-
-- **Docker Desktop** — [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop). Required to run the PostgreSQL + pgvector database. After installing, open the app and wait until it says "Engine running."
-- **Python 3.11+** — [python.org/downloads](https://www.python.org/downloads/)
-- **Node.js 20 LTS** — [nodejs.org](https://nodejs.org/)
-- **Git** — you already have this if you're reading this after cloning
-
-### 2. Clone and enter the project
+Open Docker Desktop and wait for the Engine to become ready:
 
 ```bash
-git clone https://github.com/<your-username>/campusgpt.git
-cd campusgpt
+docker info
 ```
 
-### 3. Start the database (Docker)
+### Changed `.env` values are not taking effect
+
+Recreate the backend container:
 
 ```bash
-docker compose up -d
-docker ps
+docker compose --env-file backend/.env up -d --build backend
 ```
 
-You should see a `pgvector/pgvector:pg16` container running. First run downloads the image (~a minute).
+### Email is not delivered
 
-Enable the vector extension (one-time per machine):
+Check that:
+
+1. `RESEND_API_KEY` is present in `backend/.env`.
+2. `EMAIL_FROM` is a valid Resend sender.
+3. The backend was recreated after editing `.env`.
+4. The backend logs do not show a Resend error:
 
 ```bash
-docker exec -it campusgpt-db-1 psql -U campusgpt -d campusgpt -c "CREATE EXTENSION IF NOT EXISTS vector;"
+docker compose logs --tail 100 backend
 ```
 
-### 4. Set up the backend
+### Port already in use
+
+The default host ports are `5173`, `8000`, and `5433`. Stop the process using
+the port or change the host side of the mapping in `docker-compose.yml`.
+
+### Database or migration problems
 
 ```bash
-cd backend
-python -m venv venv
-venv\Scripts\Activate.ps1        # Windows PowerShell
-# source venv/bin/activate       # Mac/Linux
-
-pip install -r requirements.txt
+docker compose ps
+docker compose logs --tail 100 campusgpt_db
+docker compose logs --tail 100 backend
+docker compose exec backend alembic current
 ```
 
-Create your own `backend/.env` file (this is never committed to git — each teammate creates their own). See the `.env` template in the main setup section above.
+For a completely fresh local database only, remove the volume:
 
 ```bash
-uvicorn app.main:app --reload --port 8000
+docker compose down -v
+docker compose --env-file backend/.env up --build -d
 ```
 
-### 5. Set up the frontend
+## Roadmap
 
-```bash
-cd ../frontend
-npm install
-npm run dev
-```
+The planned phases are tracked in [`PHASES.md`](./Architecture/PHASES.md):
 
-### ⚠️ Common gotcha
+1. Foundation — complete
+2. Authentication and OTP verification — complete
+3. Core ERP modules
+4. Student, Faculty, and Admin dashboards
+5. Documents and text extraction
+6. RAG and pgvector search
+7. AI chatbot and intent routing
+8. Analytics and reporting
+9. Optional face recognition
+10. Optional advanced AI features
+11. Production hardening and operations
 
-If you get `docker: command not found` or a `npipe`/daemon connection error, it means **Docker Desktop isn't open**, not that it's uninstalled. Open the Docker Desktop app from your Start Menu/Applications and wait for it to say "Engine running" before retrying any `docker` command.
+## Contributing
 
-## 📄 License
+When adding a backend feature, follow the existing
+`router -> schemas -> service -> repository` structure. Add an Alembic
+migration for every database schema change, update the relevant architecture
+documentation, and keep secrets out of source control.
+
+## License
 
 MIT License
