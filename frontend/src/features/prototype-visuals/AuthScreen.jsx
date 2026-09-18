@@ -1,0 +1,533 @@
+import { jsx, jsxs } from "react/jsx-runtime";
+import { useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
+import DriftWall from "./DriftWall";
+const campusWallItems = [
+  { image: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=800&auto=format&fit=crop", title: "Collaborative AI Lab" },
+  { image: "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=800&auto=format&fit=crop", title: "Campus Quadrangle" },
+  { image: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=800&auto=format&fit=crop", title: "Semantic RAG Search" },
+  { image: "https://images.unsplash.com/photo-1532094349884-543bc11b234d?q=80&w=800&auto=format&fit=crop", title: "Neural Computations" },
+  { image: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=800&auto=format&fit=crop", title: "Secure Data Core" },
+  { image: "https://images.unsplash.com/photo-1498243691581-b145c3f54a5a?q=80&w=800&auto=format&fit=crop", title: "Central Research Library" },
+  { image: "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?q=80&w=800&auto=format&fit=crop", title: "Interactive Lecture Hub" },
+  { image: "https://images.unsplash.com/photo-1562774053-701939374585?q=80&w=800&auto=format&fit=crop", title: "Faculty & Department Portal" },
+  { image: "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?q=80&w=800&auto=format&fit=crop", title: "Robotics Workshop" },
+  { image: "https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=800&auto=format&fit=crop", title: "Automated Timetables" },
+  { image: "https://images.unsplash.com/photo-1571260899304-425eee4c7efc?q=80&w=800&auto=format&fit=crop", title: "Smart Academic Advising" },
+  { image: "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?q=80&w=800&auto=format&fit=crop", title: "Predictive Exam Analytics" },
+  { image: "https://images.unsplash.com/photo-1546410531-bb4caa6b424d?q=80&w=800&auto=format&fit=crop", title: "Institutional Governance" },
+  { image: "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?q=80&w=800&auto=format&fit=crop", title: "Curriculum Repository" },
+  { image: "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=800&auto=format&fit=crop", title: "Campus Discovery Hub" }
+];
+const AuthScreen = ({
+  onSelectRole,
+  onNavigate = (_s) => {
+  },
+  onBackToLanding
+}) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { login, register } = useAuth();
+  const [authMode, setAuthMode] = useState("login");
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [loginRole, setLoginRole] = useState("student");
+  const [forgotSent, setForgotSent] = useState(false);
+  const [signupName, setSignupName] = useState("");
+  const [signupEmail, setSignupEmail] = useState("");
+  const [signupRole, setSignupRole] = useState("student");
+  const [signupPassword, setSignupPassword] = useState("");
+  const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
+  const [showSignupPassword, setShowSignupPassword] = useState(false);
+  const [showSignupConfirmPassword, setShowSignupConfirmPassword] = useState(false);
+  const [requestError, setRequestError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const handleBack = () => {
+    if (onBackToLanding) {
+      onBackToLanding();
+      return;
+    }
+    if (typeof onNavigate === "function") {
+      onNavigate("landing");
+    }
+  };
+  const handleLoginSubmit = async (e) => {
+    e.preventDefault();
+    setRequestError("");
+    setSubmitting(true);
+    try {
+      await login(loginEmail.trim(), loginPassword);
+      navigate("/app", { replace: true });
+    } catch (error) {
+      setRequestError(error.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  const handleSignupSubmit = async (e) => {
+    e.preventDefault();
+    setRequestError("");
+    if (signupPassword !== signupConfirmPassword) {
+      setRequestError("Passwords do not match.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await register(signupName.trim(), signupEmail.trim(), signupPassword, signupRole.toUpperCase());
+      navigate(`/auth/verify-email?email=${encodeURIComponent(signupEmail.trim())}`, { replace: true });
+    } catch (error) {
+      setRequestError(error.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.07,
+        delayChildren: 0.05
+      }
+    }
+  };
+  const itemVariants = {
+    hidden: { opacity: 0, y: 22 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.85,
+        ease: [0.22, 1, 0.36, 1]
+      }
+    }
+  };
+  const buttonGlowStyle = {
+    boxShadow: "0 0 0 1px rgba(255,255,255,0.15), 0 0 22px rgba(255,255,255,0.32), 0 0 44px rgba(255,255,255,0.12)"
+  };
+  return /* @__PURE__ */ jsxs(
+    "div",
+    {
+      id: "auth-screen",
+      className: "w-full min-h-screen min-h-[100dvh] bg-black text-white flex flex-col min-[900px]:flex-row overflow-x-hidden selection:bg-white/20 font-sans-ui",
+      children: [
+        /* @__PURE__ */ jsx("div", { className: "w-full min-[900px]:w-[48%] min-[900px]:min-w-[420px] min-[900px]:min-h-[100dvh] flex flex-col justify-center items-center p-[clamp(24px,5vw,64px)] relative z-20 order-2 min-[900px]:order-1 overflow-y-auto", children: /* @__PURE__ */ jsxs(
+          motion.div,
+          {
+            variants: containerVariants,
+            initial: "hidden",
+            animate: "visible",
+            className: "w-full max-w-[440px] my-auto flex flex-col",
+            children: [
+              /* @__PURE__ */ jsxs(motion.div, { variants: itemVariants, className: "mb-6 flex items-center justify-between", children: [
+                /* @__PURE__ */ jsxs(
+                  "button",
+                  {
+                    onClick: handleBack,
+                    className: "flex items-center gap-2.5 text-xs text-[var(--muted)] hover:text-white transition-colors group cursor-pointer",
+                    title: "Return to home page",
+                    children: [
+                      /* @__PURE__ */ jsx("div", { className: "w-8 h-8 rounded-full bg-[#1c1c1e] border border-white/15 flex items-center justify-center text-white shadow-sm group-hover:border-white/30 transition-colors", children: /* @__PURE__ */ jsx("i", { className: "fa-solid fa-graduation-cap text-xs" }) }),
+                      /* @__PURE__ */ jsxs("span", { className: "font-semibold text-white tracking-tight text-sm", children: [
+                        "Campus",
+                        /* @__PURE__ */ jsx("span", { className: "font-light text-neutral-400", children: "GPT" })
+                      ] })
+                    ]
+                  }
+                ),
+                /* @__PURE__ */ jsxs(
+                  "button",
+                  {
+                    onClick: handleBack,
+                    className: "text-[11px] text-[var(--muted)] hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer",
+                    children: [
+                      /* @__PURE__ */ jsx("i", { className: "fa-solid fa-arrow-left text-[10px]" }),
+                      /* @__PURE__ */ jsx("span", { children: "Back" })
+                    ]
+                  }
+                )
+              ] }),
+              /* @__PURE__ */ jsx(
+                motion.h1,
+                {
+                  variants: itemVariants,
+                  className: "text-2xl sm:text-3xl font-semibold text-white tracking-tight",
+                  children: authMode === "login" ? "Welcome Back" : "Create Your Account"
+                }
+              ),
+              /* @__PURE__ */ jsx(
+                motion.p,
+                {
+                  variants: itemVariants,
+                  className: "text-sm text-[var(--muted)] mt-1.5 leading-relaxed",
+                  children: authMode === "login" ? "Sign in to access your campus dashboard" : "Join CampusGPT with your official university credentials"
+                }
+              ),
+              /* @__PURE__ */ jsx(motion.div, { variants: itemVariants, className: "mt-5 mb-6", children: /* @__PURE__ */ jsxs("div", { className: "inline-flex p-1 rounded-full bg-[#1a1a1c] border border-white/10 shadow-inner", children: [
+                /* @__PURE__ */ jsx(
+                  "button",
+                  {
+                    type: "button",
+                    id: "tab-sign-in",
+                    onClick: () => setAuthMode("login"),
+                    className: `px-5 py-2 rounded-full text-xs font-medium transition-all cursor-pointer ${authMode === "login" ? "bg-white text-black font-semibold shadow-sm" : "text-[var(--muted)] hover:text-white"}`,
+                    children: "Sign In"
+                  }
+                ),
+                /* @__PURE__ */ jsx(
+                  "button",
+                  {
+                    type: "button",
+                    id: "tab-sign-up",
+                    onClick: () => setAuthMode("signup"),
+                    className: `px-5 py-2 rounded-full text-xs font-medium transition-all cursor-pointer ${authMode === "signup" ? "bg-white text-black font-semibold shadow-sm" : "text-[var(--muted)] hover:text-white"}`,
+                    children: "Sign Up"
+                  }
+                )
+              ] }) }),
+              requestError && /* @__PURE__ */ jsx("p", { role: "alert", className: "text-xs text-red-400 mb-4", children: requestError }),
+              /* @__PURE__ */ jsx(AnimatePresence, { mode: "wait", children: authMode === "login" ? (
+                /* ================= LOGIN FORM ================= */
+                /* @__PURE__ */ jsxs(
+                  motion.form,
+                  {
+                    variants: containerVariants,
+                    initial: "hidden",
+                    animate: "visible",
+                    exit: { opacity: 0, y: -10, transition: { duration: 0.2 } },
+                    onSubmit: handleLoginSubmit,
+                    className: "space-y-4 w-full",
+                    children: [
+                      /* @__PURE__ */ jsxs(motion.div, { variants: itemVariants, children: [
+                        /* @__PURE__ */ jsx("label", { className: "block text-xs font-medium text-[var(--muted)] mb-1.5 pl-0.5", children: "Campus Email" }),
+                        /* @__PURE__ */ jsxs("div", { className: "relative", children: [
+                          /* @__PURE__ */ jsx(
+                            "input",
+                            {
+                              id: "login-email-input",
+                              type: "email",
+                              required: true,
+                              value: loginEmail,
+                              onChange: (e) => setLoginEmail(e.target.value),
+                              placeholder: "name@campus.edu",
+                              className: "w-full bg-[#141416] text-white border border-white/10 rounded-[14px] px-4 py-3.5 text-sm placeholder:text-[#8e8e8e] focus:outline-none focus:border-white/40 focus:ring-1 focus:ring-white/20 transition-all"
+                            }
+                          ),
+                          /* @__PURE__ */ jsx("div", { className: "absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none text-xs", children: /* @__PURE__ */ jsx("i", { className: "fa-regular fa-envelope" }) })
+                        ] })
+                      ] }),
+                      /* @__PURE__ */ jsxs(motion.div, { variants: itemVariants, children: [
+                        /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between mb-1.5 pl-0.5", children: [
+                          /* @__PURE__ */ jsx("label", { className: "text-xs font-medium text-[var(--muted)]", children: "Password" }),
+                          /* @__PURE__ */ jsx(
+                            "button",
+                            {
+                              type: "button",
+                              onClick: () => navigate("/auth/forgot-password"),
+                              className: "text-xs text-[var(--muted)] hover:text-white transition-colors cursor-pointer",
+                              children: "Forgot password?"
+                            }
+                          )
+                        ] }),
+                        /* @__PURE__ */ jsxs("div", { className: "relative", children: [
+                          /* @__PURE__ */ jsx(
+                            "input",
+                            {
+                              id: "login-password-input",
+                              type: showLoginPassword ? "text" : "password",
+                              required: true,
+                              value: loginPassword,
+                              onChange: (e) => setLoginPassword(e.target.value),
+                              placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
+                              className: "w-full bg-[#141416] text-white border border-white/10 rounded-[14px] px-4 py-3.5 pr-11 text-sm placeholder:text-[#8e8e8e] focus:outline-none focus:border-white/40 focus:ring-1 focus:ring-white/20 transition-all font-mono"
+                            }
+                          ),
+                          /* @__PURE__ */ jsx(
+                            "button",
+                            {
+                              type: "button",
+                              onClick: () => setShowLoginPassword(!showLoginPassword),
+                              className: "absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white transition-colors p-1 cursor-pointer",
+                              title: showLoginPassword ? "Hide password" : "Show password",
+                              children: /* @__PURE__ */ jsx(
+                                "i",
+                                {
+                                  className: `fa-solid ${showLoginPassword ? "fa-eye-slash" : "fa-eye"} text-xs`
+                                }
+                              )
+                            }
+                          )
+                        ] }),
+                        forgotSent && /* @__PURE__ */ jsxs(
+                          motion.div,
+                          {
+                            initial: { opacity: 0, y: -4 },
+                            animate: { opacity: 1, y: 0 },
+                            className: "text-[11px] text-emerald-400 mt-2 pl-0.5 flex items-center gap-1.5",
+                            children: [
+                              /* @__PURE__ */ jsx("i", { className: "fa-solid fa-circle-check text-[10px]" }),
+                              /* @__PURE__ */ jsx("span", { children: "Password reset link sent to your registered email" })
+                            ]
+                          }
+                        )
+                      ] }),
+                      /* @__PURE__ */ jsx(motion.div, { variants: itemVariants, className: "pt-2", children: /* @__PURE__ */ jsxs(
+                        "button",
+                        {
+                          type: "submit",
+                          id: "submit-sign-in-btn",
+                          style: buttonGlowStyle,
+                          className: "w-full bg-white hover:bg-neutral-100 text-black font-semibold text-sm py-3.5 px-6 rounded-full transition-all active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2",
+                          children: [
+                            /* @__PURE__ */ jsx("span", { children: submitting ? "Signing In..." : "Sign In" }),
+                            /* @__PURE__ */ jsx("i", { className: "fa-solid fa-arrow-right text-xs" })
+                          ]
+                        }
+                      ) }),
+                      /* @__PURE__ */ jsx(motion.div, { variants: itemVariants, children: /* @__PURE__ */ jsxs("p", { className: "text-xs text-[var(--muted)] text-center mt-3", children: [
+                        "Don't have an account?",
+                        " ",
+                        /* @__PURE__ */ jsx(
+                          "button",
+                          {
+                            type: "button",
+                            onClick: () => setAuthMode("signup"),
+                            className: "text-white hover:underline font-medium cursor-pointer ml-1",
+                            children: "Sign up"
+                          }
+                        )
+                      ] }) }),
+                    ]
+                  },
+                  "login-form"
+                )
+              ) : (
+                /* ================= SIGNUP FORM ================= */
+                /* @__PURE__ */ jsxs(
+                  motion.form,
+                  {
+                    variants: containerVariants,
+                    initial: "hidden",
+                    animate: "visible",
+                    exit: { opacity: 0, y: -10, transition: { duration: 0.2 } },
+                    onSubmit: handleSignupSubmit,
+                    className: "space-y-3.5 w-full",
+                    children: [
+                      /* @__PURE__ */ jsxs(motion.div, { variants: itemVariants, children: [
+                        /* @__PURE__ */ jsx("label", { className: "block text-xs font-medium text-[var(--muted)] mb-1.5 pl-0.5", children: "Full Name" }),
+                        /* @__PURE__ */ jsxs("div", { className: "relative", children: [
+                          /* @__PURE__ */ jsx(
+                            "input",
+                            {
+                              id: "signup-name-input",
+                              type: "text",
+                              required: true,
+                              value: signupName,
+                              onChange: (e) => setSignupName(e.target.value),
+                              placeholder: "e.g. Aarav Sharma",
+                              className: "w-full bg-[#141416] text-white border border-white/10 rounded-[14px] px-4 py-3.5 text-sm placeholder:text-[#8e8e8e] focus:outline-none focus:border-white/40 focus:ring-1 focus:ring-white/20 transition-all"
+                            }
+                          ),
+                          /* @__PURE__ */ jsx("div", { className: "absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none text-xs", children: /* @__PURE__ */ jsx("i", { className: "fa-regular fa-user" }) })
+                        ] })
+                      ] }),
+                      /* @__PURE__ */ jsxs(motion.div, { variants: itemVariants, children: [
+                        /* @__PURE__ */ jsx("label", { className: "block text-xs font-medium text-[var(--muted)] mb-1.5 pl-0.5", children: "University Email" }),
+                        /* @__PURE__ */ jsxs("div", { className: "relative", children: [
+                          /* @__PURE__ */ jsx(
+                            "input",
+                            {
+                              id: "signup-email-input",
+                              type: "email",
+                              required: true,
+                              value: signupEmail,
+                              onChange: (e) => setSignupEmail(e.target.value),
+                              placeholder: "e.g. aarav.sharma@campus.edu",
+                              className: "w-full bg-[#141416] text-white border border-white/10 rounded-[14px] px-4 py-3.5 text-sm placeholder:text-[#8e8e8e] focus:outline-none focus:border-white/40 focus:ring-1 focus:ring-white/20 transition-all"
+                            }
+                          ),
+                          /* @__PURE__ */ jsx("div", { className: "absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none text-xs", children: /* @__PURE__ */ jsx("i", { className: "fa-regular fa-envelope" }) })
+                        ] })
+                      ] }),
+                      /* @__PURE__ */ jsxs(motion.div, { variants: itemVariants, children: [
+                        /* @__PURE__ */ jsx("label", { className: "block text-xs font-medium text-[var(--muted)] mb-1.5 pl-0.5", children: "Select University Role" }),
+                        /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-2 gap-2 p-1 rounded-[14px] bg-[#141416] border border-white/10", children: [
+                          /* @__PURE__ */ jsxs(
+                            "button",
+                            {
+                              type: "button",
+                              id: "role-pill-student",
+                              onClick: () => setSignupRole("student"),
+                              className: `py-2.5 px-4 rounded-xl text-xs font-medium transition-all flex items-center justify-center gap-2 cursor-pointer ${signupRole === "student" ? "bg-white text-black font-semibold shadow-sm" : "text-neutral-400 hover:text-white"}`,
+                              children: [
+                                /* @__PURE__ */ jsx("i", { className: "fa-solid fa-user-graduate text-xs" }),
+                                /* @__PURE__ */ jsx("span", { children: "Student" })
+                              ]
+                            }
+                          ),
+                          /* @__PURE__ */ jsxs(
+                            "button",
+                            {
+                              type: "button",
+                              id: "role-pill-faculty",
+                              onClick: () => setSignupRole("faculty"),
+                              className: `py-2.5 px-4 rounded-xl text-xs font-medium transition-all flex items-center justify-center gap-2 cursor-pointer ${signupRole === "faculty" ? "bg-white text-black font-semibold shadow-sm" : "text-neutral-400 hover:text-white"}`,
+                              children: [
+                                /* @__PURE__ */ jsx("i", { className: "fa-solid fa-chalkboard-user text-xs" }),
+                                /* @__PURE__ */ jsx("span", { children: "Faculty" })
+                              ]
+                            }
+                          )
+                        ] }),
+                        /* @__PURE__ */ jsx("p", { className: "text-[10px] text-neutral-500 mt-1 pl-1", children: "* Administrator clearance accounts are provisioned directly by campus IT." })
+                      ] }),
+                      /* @__PURE__ */ jsxs(motion.div, { variants: itemVariants, children: [
+                        /* @__PURE__ */ jsx("label", { className: "block text-xs font-medium text-[var(--muted)] mb-1.5 pl-0.5", children: "Password" }),
+                        /* @__PURE__ */ jsxs("div", { className: "relative", children: [
+                          /* @__PURE__ */ jsx(
+                            "input",
+                            {
+                              id: "signup-password-input",
+                              type: showSignupPassword ? "text" : "password",
+                              required: true,
+                              value: signupPassword,
+                              onChange: (e) => setSignupPassword(e.target.value),
+                              placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
+                              className: "w-full bg-[#141416] text-white border border-white/10 rounded-[14px] px-4 py-3.5 pr-11 text-sm placeholder:text-[#8e8e8e] focus:outline-none focus:border-white/40 focus:ring-1 focus:ring-white/20 transition-all font-mono"
+                            }
+                          ),
+                          /* @__PURE__ */ jsx(
+                            "button",
+                            {
+                              type: "button",
+                              onClick: () => setShowSignupPassword(!showSignupPassword),
+                              className: "absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white transition-colors p-1 cursor-pointer",
+                              title: showSignupPassword ? "Hide password" : "Show password",
+                              children: /* @__PURE__ */ jsx(
+                                "i",
+                                {
+                                  className: `fa-solid ${showSignupPassword ? "fa-eye-slash" : "fa-eye"} text-xs`
+                                }
+                              )
+                            }
+                          )
+                        ] })
+                      ] }),
+                      /* @__PURE__ */ jsxs(motion.div, { variants: itemVariants, children: [
+                        /* @__PURE__ */ jsx("label", { className: "block text-xs font-medium text-[var(--muted)] mb-1.5 pl-0.5", children: "Confirm Password" }),
+                        /* @__PURE__ */ jsxs("div", { className: "relative", children: [
+                          /* @__PURE__ */ jsx(
+                            "input",
+                            {
+                              id: "signup-confirm-password-input",
+                              type: showSignupConfirmPassword ? "text" : "password",
+                              required: true,
+                              value: signupConfirmPassword,
+                              onChange: (e) => setSignupConfirmPassword(e.target.value),
+                              placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
+                              className: "w-full bg-[#141416] text-white border border-white/10 rounded-[14px] px-4 py-3.5 pr-11 text-sm placeholder:text-[#8e8e8e] focus:outline-none focus:border-white/40 focus:ring-1 focus:ring-white/20 transition-all font-mono"
+                            }
+                          ),
+                          /* @__PURE__ */ jsx(
+                            "button",
+                            {
+                              type: "button",
+                              onClick: () => setShowSignupConfirmPassword(!showSignupConfirmPassword),
+                              className: "absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white transition-colors p-1 cursor-pointer",
+                              title: showSignupConfirmPassword ? "Hide password" : "Show password",
+                              children: /* @__PURE__ */ jsx(
+                                "i",
+                                {
+                                  className: `fa-solid ${showSignupConfirmPassword ? "fa-eye-slash" : "fa-eye"}`
+                                }
+                              )
+                            }
+                          )
+                        ] })
+                      ] }),
+                      /* @__PURE__ */ jsx(motion.div, { variants: itemVariants, className: "pt-2", children: /* @__PURE__ */ jsxs(
+                        "button",
+                        {
+                          type: "submit",
+                          id: "submit-create-account-btn",
+                          style: buttonGlowStyle,
+                          className: "w-full bg-white hover:bg-neutral-100 text-black font-semibold text-sm py-3.5 px-6 rounded-full transition-all active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2",
+                          children: [
+                            /* @__PURE__ */ jsx("span", { children: submitting ? "Creating Account..." : "Create Account" }),
+                            /* @__PURE__ */ jsx("i", { className: "fa-solid fa-arrow-right text-xs" })
+                          ]
+                        }
+                      ) }),
+                      /* @__PURE__ */ jsx(motion.div, { variants: itemVariants, children: /* @__PURE__ */ jsxs("p", { className: "text-xs text-[var(--muted)] text-center mt-3", children: [
+                        "Already have an account?",
+                        " ",
+                        /* @__PURE__ */ jsx(
+                          "button",
+                          {
+                            type: "button",
+                            onClick: () => setAuthMode("login"),
+                            className: "text-white hover:underline font-medium cursor-pointer ml-1",
+                            children: "Sign in"
+                          }
+                        )
+                      ] }) })
+                    ]
+                  },
+                  "signup-form"
+                )
+              ) })
+            ]
+          }
+        ) }),
+        /* @__PURE__ */ jsxs("div", { className: "w-full min-[900px]:w-[52%] h-[420px] min-[500px]:h-[480px] min-[900px]:h-auto min-[900px]:min-h-[100dvh] relative overflow-hidden bg-[#060010] flex flex-col justify-center items-center order-1 min-[900px]:order-2 border-b min-[900px]:border-b-0 min-[900px]:border-l border-white/10", children: [
+          /* @__PURE__ */ jsx("div", { className: "absolute inset-0 w-full h-full", children: /* @__PURE__ */ jsx(
+            DriftWall,
+            {
+              items: campusWallItems,
+              columns: 5,
+              tileWidth: 190,
+              tileHeight: 126,
+              gap: 16,
+              tilt: 16,
+              turn: -14,
+              perspective: 1200,
+              depth: 120,
+              speed: 38,
+              direction: "up",
+              variance: 0.45,
+              parallax: 0.6,
+              lift: 64,
+              fade: 0.6,
+              dim: 0.55,
+              overlayColor: "#060010"
+            }
+          ) }),
+          /* @__PURE__ */ jsx(
+            "div",
+            {
+              className: "pointer-events-none absolute left-0 top-0 bottom-0 z-10 hidden min-[900px]:block w-24",
+              style: {
+                background: "linear-gradient(to right, #000000 0%, rgba(0,0,0,0.85) 35%, transparent 100%)"
+              }
+            }
+          ),
+          /* @__PURE__ */ jsx(
+            "div",
+            {
+              className: "pointer-events-none absolute bottom-0 inset-x-0 z-10 block min-[900px]:hidden h-16",
+              style: {
+                background: "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.85) 65%, #000000 100%)"
+              }
+            }
+          )
+        ] })
+      ]
+    }
+  );
+};
+export {
+  AuthScreen
+};

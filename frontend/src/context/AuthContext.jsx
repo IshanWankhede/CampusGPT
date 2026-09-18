@@ -65,12 +65,23 @@ export function AuthProvider({ children }) {
   };
 
   const register = async (fullName, email, password, role) => {
-    await request("/register", {
+    return request("/register", {
       method: "POST",
       body: JSON.stringify({ full_name: fullName, email, password, role }),
     });
-    return login(email, password);
   };
+
+  const sendOtp = (email, purpose) =>
+    request("/send-otp", { method: "POST", body: JSON.stringify({ email, purpose }) });
+  const verifyOtp = (email, otp, purpose) =>
+    request("/verify-otp", { method: "POST", body: JSON.stringify({ email, otp, purpose }) });
+  const forgotPassword = (email) =>
+    request("/forgot-password", { method: "POST", body: JSON.stringify({ email }) });
+  const resetPassword = (email, otp, newPassword) =>
+    request("/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ email, otp, new_password: newPassword }),
+    });
 
   const logout = async () => {
     if (session?.access_token) {
@@ -91,6 +102,10 @@ export function AuthProvider({ children }) {
       loading,
       login,
       register,
+      sendOtp,
+      verifyOtp,
+      forgotPassword,
+      resetPassword,
       logout,
     }),
     [session, loading],

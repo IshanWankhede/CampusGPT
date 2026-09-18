@@ -31,6 +31,8 @@ services:
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-all-MiniLM-L6-v2}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
       ENV: ${ENV:-development}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-onboarding@resend.dev}
     depends_on:
       campusgpt_db:
         condition: service_healthy

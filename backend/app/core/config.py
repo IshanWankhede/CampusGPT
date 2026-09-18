@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
     CORS_ORIGINS: str = "http://localhost:5173"
     ENV: str = "development"
+    RESEND_API_KEY: str = ""
+    EMAIL_FROM: str = "onboarding@resend.dev"
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
