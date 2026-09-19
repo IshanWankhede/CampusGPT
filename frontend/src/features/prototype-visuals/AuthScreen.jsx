@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from "motion/react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import DriftWall from "./DriftWall";
+import { FcGoogle } from "react-icons/fc";
+import StarBorder from "./StarBorder";
 const campusWallItems = [
   { image: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=800&auto=format&fit=crop", title: "Collaborative AI Lab" },
   { image: "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=800&auto=format&fit=crop", title: "Campus Quadrangle" },
@@ -79,6 +81,7 @@ const AuthScreen = ({
   const [loginRole, setLoginRole] = useState("student");
   const [forgotSent, setForgotSent] = useState(false);
   const [signupName, setSignupName] = useState("");
+  const [signupCollege, setSignupCollege] = useState("COEP");
   const [signupEmail, setSignupEmail] = useState("");
   const [signupRole, setSignupRole] = useState("student");
   const [signupPassword, setSignupPassword] = useState("");
@@ -145,6 +148,9 @@ const AuthScreen = ({
     if (typeof onNavigate === "function") {
       onNavigate("landing");
     }
+  };
+  const handleGoogleSignIn = () => {
+    console.log("Initiating Google SSO sign-in...");
   };
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
@@ -304,105 +310,104 @@ const AuthScreen = ({
                     onSubmit: handleLoginSubmit,
                     className: "space-y-4 w-full",
                     children: [
-                      /* @__PURE__ */ jsxs(motion.div, { variants: itemVariants, children: [
-                        /* @__PURE__ */ jsx("label", { className: "block text-xs font-medium text-[var(--muted)] mb-1.5 pl-0.5", children: "Campus Email" }),
-                        /* @__PURE__ */ jsxs("div", { className: "relative", children: [
-                          /* @__PURE__ */ jsx(
-                            "input",
-                            {
-                              id: "login-email-input",
-                              type: "email",
-                              required: true,
-                              value: loginEmail,
-                              onChange: (e) => setLoginEmail(e.target.value),
-                              placeholder: "name@campus.edu",
-                              className: "w-full bg-[#141416] text-white border border-white/10 rounded-[14px] px-4 py-3.5 text-sm placeholder:text-[#8e8e8e] focus:outline-none focus:border-white/40 focus:ring-1 focus:ring-white/20 transition-all"
-                            }
-                          ),
-                          /* @__PURE__ */ jsx("div", { className: "absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none text-xs", children: /* @__PURE__ */ jsx("i", { className: "fa-regular fa-envelope" }) })
-                        ] })
-                      ] }),
-                      /* @__PURE__ */ jsxs(motion.div, { variants: itemVariants, children: [
-                        /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between mb-1.5 pl-0.5", children: [
-                          /* @__PURE__ */ jsx("label", { className: "text-xs font-medium text-[var(--muted)]", children: "Password" }),
-                          /* @__PURE__ */ jsx(
-                            "button",
-                            {
-                              type: "button",
-                              onClick: () => navigate("/auth/forgot-password"),
-                              className: "text-xs text-[var(--muted)] hover:text-white transition-colors cursor-pointer",
-                              children: "Forgot password?"
-                            }
-                          )
-                        ] }),
-                        /* @__PURE__ */ jsxs("div", { className: "relative", children: [
-                          /* @__PURE__ */ jsx(
-                            "input",
-                            {
-                              id: "login-password-input",
-                              type: showLoginPassword ? "text" : "password",
-                              required: true,
-                              value: loginPassword,
-                              onChange: (e) => setLoginPassword(e.target.value),
-                              placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
-                              className: "w-full bg-[#141416] text-white border border-white/10 rounded-[14px] px-4 py-3.5 pr-11 text-sm placeholder:text-[#8e8e8e] focus:outline-none focus:border-white/40 focus:ring-1 focus:ring-white/20 transition-all font-mono"
-                            }
-                          ),
-                          /* @__PURE__ */ jsx(
-                            "button",
-                            {
-                              type: "button",
-                              onClick: () => setShowLoginPassword(!showLoginPassword),
-                              className: "absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white transition-colors p-1 cursor-pointer",
-                              title: showLoginPassword ? "Hide password" : "Show password",
-                              children: /* @__PURE__ */ jsx(
-                                "i",
-                                {
-                                  className: `fa-solid ${showLoginPassword ? "fa-eye-slash" : "fa-eye"} text-xs`
-                                }
-                              )
-                            }
-                          )
-                        ] }),
-                        forgotSent && /* @__PURE__ */ jsxs(
-                          motion.div,
-                          {
-                            initial: { opacity: 0, y: -4 },
-                            animate: { opacity: 1, y: 0 },
-                            className: "text-[11px] text-emerald-400 mt-2 pl-0.5 flex items-center gap-1.5",
-                            children: [
-                              /* @__PURE__ */ jsx("i", { className: "fa-solid fa-circle-check text-[10px]" }),
-                              /* @__PURE__ */ jsx("span", { children: "Password reset link sent to your registered email" })
-                            ]
-                          }
-                        )
-                      ] }),
-                      /* @__PURE__ */ jsx(motion.div, { variants: itemVariants, className: "pt-2", children: /* @__PURE__ */ jsxs(
-                        "button",
-                        {
-                          type: "submit",
-                          id: "submit-sign-in-btn",
-                          style: buttonGlowStyle,
-                          className: "w-full bg-white hover:bg-neutral-100 text-black font-semibold text-sm py-3.5 px-6 rounded-full transition-all active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2",
-                          children: [
-                            /* @__PURE__ */ jsx("span", { children: submitting ? "Signing In..." : "Sign In" }),
-                            /* @__PURE__ */ jsx("i", { className: "fa-solid fa-arrow-right text-xs" })
-                          ]
-                        }
-                      ) }),
-                      /* @__PURE__ */ jsx(motion.div, { variants: itemVariants, children: /* @__PURE__ */ jsxs("p", { className: "text-xs text-[var(--muted)] text-center mt-3", children: [
-                        "Don't have an account?",
-                        " ",
-                        /* @__PURE__ */ jsx(
-                          "button",
-                          {
-                            type: "button",
-                            onClick: () => setAuthMode("signup"),
-                            className: "text-white hover:underline font-medium cursor-pointer ml-1",
-                            children: "Sign up"
-                          }
-                        )
-                      ] }) }),
+                      <motion.div variants={itemVariants}>
+                        <label className="block text-xs font-medium text-[var(--muted)] mb-1.5 pl-0.5">Campus Email</label>
+                        <StarBorder className="w-full" color="white" speed="5s" thickness={1} backgroundColor="#141416" borderColor="rgba(255, 255, 255, 0.1)">
+                          <div className="relative">
+                            <input
+                              id="login-email-input"
+                              type="email"
+                              required
+                              value={loginEmail}
+                              onChange={(e) => setLoginEmail(e.target.value)}
+                              placeholder="name@campus.edu"
+                              className="w-full bg-transparent text-white rounded-[13px] px-4 py-3.5 text-sm placeholder:text-[#8e8e8e] focus:outline-none transition-all pr-10"
+                            />
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none text-xs">
+                              <i className="fa-regular fa-envelope" />
+                            </div>
+                          </div>
+                        </StarBorder>
+                      </motion.div>,
+                      <motion.div variants={itemVariants}>
+                        <div className="flex items-center justify-between mb-1.5 pl-0.5">
+                          <label className="text-xs font-medium text-[var(--muted)]">Password</label>
+                          <button
+                            type="button"
+                            onClick={() => navigate("/auth/forgot-password")}
+                            className="text-xs text-[var(--muted)] hover:text-white transition-colors cursor-pointer"
+                          >
+                            Forgot password?
+                          </button>
+                        </div>
+                        <StarBorder className="w-full" color="white" speed="5s" thickness={1} backgroundColor="#141416" borderColor="rgba(255, 255, 255, 0.1)">
+                          <div className="relative">
+                            <input
+                              id="login-password-input"
+                              type={showLoginPassword ? "text" : "password"}
+                              required
+                              value={loginPassword}
+                              onChange={(e) => setLoginPassword(e.target.value)}
+                              placeholder="••••••••••••"
+                              className="w-full bg-transparent text-white rounded-[13px] px-4 py-3.5 pr-11 text-sm placeholder:text-[#8e8e8e] focus:outline-none transition-all font-mono"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowLoginPassword(!showLoginPassword)}
+                              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white transition-colors p-1 cursor-pointer"
+                              title={showLoginPassword ? "Hide password" : "Show password"}
+                            >
+                              <i className={`fa-solid ${showLoginPassword ? "fa-eye-slash" : "fa-eye"} text-xs`} />
+                            </button>
+                          </div>
+                        </StarBorder>
+                        {forgotSent && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -4 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="text-[11px] text-emerald-400 mt-2 pl-0.5 flex items-center gap-1.5"
+                          >
+                            <i className="fa-solid fa-circle-check text-[10px]" />
+                            <span>Password reset link sent to your registered email</span>
+                          </motion.div>
+                        )}
+                      </motion.div>,
+                      <motion.div variants={itemVariants} className="pt-2 grid grid-cols-3 gap-2.5">
+                        <button
+                          type="submit"
+                          id="submit-sign-in-btn"
+                          style={buttonGlowStyle}
+                          className="col-span-2 w-full bg-white hover:bg-neutral-100 text-black font-semibold text-sm py-3.5 px-4 rounded-full transition-all active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2"
+                        >
+                          <span>{submitting ? "Signing In..." : "Sign In"}</span>
+                          <i className="fa-solid fa-arrow-right text-xs" />
+                        </button>
+
+                        <div className="col-span-1">
+                          <button
+                            type="button"
+                            id="google-sign-in-btn"
+                            onClick={handleGoogleSignIn}
+                            aria-label="Continue with Google"
+                            title="Continue with Google"
+                            className="w-full h-full py-3.5 rounded-full border border-white/10 bg-[#141416] hover:bg-[#1e1e24] hover:border-white/30 text-white transition-all flex items-center justify-center cursor-pointer shadow-md active:scale-[0.98]"
+                          >
+                            <FcGoogle className="w-5 h-5 flex-shrink-0" />
+                          </button>
+                        </div>
+                      </motion.div>,
+                      <motion.div variants={itemVariants}>
+                        <p className="text-xs text-[var(--muted)] text-center mt-3">
+                          Don't have an account?{" "}
+                          <button
+                            type="button"
+                            onClick={() => setAuthMode("signup")}
+                            className="text-white hover:underline font-medium cursor-pointer ml-1"
+                          >
+                            Sign up
+                          </button>
+                        </p>
+                      </motion.div>
                     ]
                   },
                   "login-form"
@@ -419,67 +424,111 @@ const AuthScreen = ({
                     onSubmit: handleSignupSubmit,
                     className: "space-y-3.5 w-full",
                     children: [
-                      /* @__PURE__ */ jsxs(motion.div, { variants: itemVariants, children: [
-                        /* @__PURE__ */ jsx("label", { className: "block text-xs font-medium text-[var(--muted)] mb-1.5 pl-0.5", children: "Full Name" }),
-                        /* @__PURE__ */ jsxs("div", { className: "relative", children: [
-                          /* @__PURE__ */ jsx(
-                            "input",
-                            {
-                              id: "signup-name-input",
-                              type: "text",
-                              required: true,
-                              value: signupName,
-                              onChange: (e) => setSignupName(e.target.value),
-                              placeholder: "xyz",
-                              className: "w-full bg-[#141416] text-white border border-white/10 rounded-[14px] px-4 py-3.5 text-sm placeholder:text-[#8e8e8e] focus:outline-none focus:border-white/40 focus:ring-1 focus:ring-white/20 transition-all"
-                            }
-                          ),
-                          /* @__PURE__ */ jsx("div", { className: "absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none text-xs", children: /* @__PURE__ */ jsx("i", { className: "fa-regular fa-user" }) })
-                        ] })
-                      ] }),
-                      /* @__PURE__ */ jsxs(motion.div, { variants: itemVariants, children: [
-                        /* @__PURE__ */ jsx("label", { className: "block text-xs font-medium text-[var(--muted)] mb-1.5 pl-0.5", children: "University Email" }),
-                        /* @__PURE__ */ jsxs("div", { className: "relative", children: [
-                          /* @__PURE__ */ jsx(
-                            "input",
-                            {
-                              id: "signup-email-input",
-                              type: "email",
-                              required: true,
-                              value: signupEmail,
-                              onChange: handleSignupEmailChange,
-                              placeholder: "xyz@gmail.com",
-                              className: "w-full bg-[#141416] text-white border border-white/10 rounded-[14px] px-4 py-3.5 text-sm placeholder:text-[#8e8e8e] focus:outline-none focus:border-white/40 focus:ring-1 focus:ring-white/20 transition-all"
-                            }
-                          ),
-                          /* @__PURE__ */ jsx("div", { className: "absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none text-xs", children: /* @__PURE__ */ jsx("i", { className: "fa-regular fa-envelope" }) })
-                        ] }),
-                        authMode === "signup" && validSignupEmail && !otpSent ? /* @__PURE__ */ jsx(motion.div, {
-                          initial: { opacity: 0, y: -6 },
-                          animate: { opacity: 1, y: 0 },
-                          className: "mt-2",
-                          children: /* @__PURE__ */ jsx("button", {
-                            type: "button",
-                            disabled: otpSending,
-                            onClick: handleSendSignupOtp,
-                            className: "rounded-full border border-white/15 bg-[#141416] px-3.5 py-1.5 text-[11px] text-neutral-300 hover:text-white hover:border-white/35 transition-colors disabled:opacity-50",
-                            children: otpSending ? "Sending..." : "Verify Email"
-                          })
-                        }) : null,
-                        authMode === "signup" && validSignupEmail && otpSent ? /* @__PURE__ */ jsx(motion.div, {
-                          initial: { opacity: 0, y: -6 },
-                          animate: { opacity: 1, y: 0 },
-                          className: "mt-2 space-y-1.5",
-                          children: [
-                            /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between text-[10px] text-neutral-500", children: [
-                              /* @__PURE__ */ jsx("span", { children: `Code sent to ${signupEmail}` }),
-                              !emailVerified && resendSeconds === 0 ? /* @__PURE__ */ jsx("button", { type: "button", onClick: handleSendSignupOtp, className: "text-white hover:text-neutral-300 underline", children: "Resend code" }) : !emailVerified ? /* @__PURE__ */ jsx("span", { children: `Resend in ${resendSeconds}s` }) : null
-                            ] }),
-                            /* @__PURE__ */ jsx(InlineOtp, { value: otp, onChange: setOtp, disabled: emailVerified, status: otpStatus, onComplete: handleVerifySignupOtp }),
-                            otpStatus === "success" ? /* @__PURE__ */ jsxs("p", { className: "text-[10px] text-green-400", children: [/* @__PURE__ */ jsx("i", { className: "fa-solid fa-check mr-1" }), "Email verified"] }) : otpError ? /* @__PURE__ */ jsx("p", { className: "text-[10px] text-red-400", children: otpError }) : null
-                          ]
-                        }) : null
-                      ] }),
+                      <motion.div variants={itemVariants}>
+                        <label className="block text-xs font-medium text-[var(--muted)] mb-1.5 pl-0.5">Full Name</label>
+                        <StarBorder className="w-full" color="white" speed="5s" thickness={1} backgroundColor="#141416" borderColor="rgba(255, 255, 255, 0.1)">
+                          <div className="relative">
+                            <input
+                              id="signup-name-input"
+                              type="text"
+                              required
+                              value={signupName}
+                              onChange={(e) => setSignupName(e.target.value)}
+                              placeholder="xyz"
+                              className="w-full bg-transparent text-white rounded-[13px] px-4 py-3.5 text-sm placeholder:text-[#8e8e8e] focus:outline-none transition-all pr-10"
+                            />
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none text-xs">
+                              <i className="fa-regular fa-user" />
+                            </div>
+                          </div>
+                        </StarBorder>
+                      </motion.div>,
+
+                      /* College Selection Dropdown */
+                      <motion.div variants={itemVariants}>
+                        <label 
+                          htmlFor="signup-college-select" 
+                          className="block text-xs font-medium text-neutral-400 mb-1.5 pl-0.5"
+                        >
+                          College / Institute
+                        </label>
+                        <StarBorder className="w-full" color="white" speed="5s" thickness={1} backgroundColor="#141416" borderColor="rgba(255, 255, 255, 0.1)">
+                          <div className="relative">
+                            <select
+                              id="signup-college-select"
+                              value={signupCollege}
+                              onChange={(e) => setSignupCollege(e.target.value)}
+                              className="w-full bg-transparent text-white rounded-[13px] px-4 py-3.5 text-sm appearance-none focus:outline-none transition-all cursor-pointer pr-10"
+                            >
+                              <option value="COEP" className="bg-[#141416] text-white">
+                                COEP (College of Engineering Pune)
+                              </option>
+                              <option value="PICT" className="bg-[#141416] text-white">
+                                PICT (Pune Institute of Computer Technology)
+                              </option>
+                              <option value="VIT" className="bg-[#141416] text-white">
+                                VIT (Vishwakarma Institute of Technology)
+                              </option>
+                            </select>
+                            
+                            {/* Dropdown Chevron Arrow */}
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none text-xs flex items-center">
+                              <i className="fa-solid fa-chevron-down text-[11px]" />
+                            </div>
+                          </div>
+                        </StarBorder>
+                      </motion.div>,
+                      <motion.div variants={itemVariants}>
+                        <label className="block text-xs font-medium text-[var(--muted)] mb-1.5 pl-0.5">University Email</label>
+                        <StarBorder className="w-full" color="white" speed="5s" thickness={1} backgroundColor="#141416" borderColor="rgba(255, 255, 255, 0.1)">
+                          <div className="relative">
+                            <input
+                              id="signup-email-input"
+                              type="email"
+                              required
+                              value={signupEmail}
+                              onChange={handleSignupEmailChange}
+                              placeholder="xyz@gmail.com"
+                              className="w-full bg-transparent text-white rounded-[13px] px-4 py-3.5 text-sm placeholder:text-[#8e8e8e] focus:outline-none transition-all pr-10"
+                            />
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none text-xs">
+                              <i className="fa-regular fa-envelope" />
+                            </div>
+                          </div>
+                        </StarBorder>
+                        {authMode === "signup" && validSignupEmail && !otpSent ? (
+                          <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="mt-2">
+                            <button
+                              type="button"
+                              disabled={otpSending}
+                              onClick={handleSendSignupOtp}
+                              className="rounded-full border border-white/15 bg-[#141416] px-3.5 py-1.5 text-[11px] text-neutral-300 hover:text-white hover:border-white/35 transition-colors disabled:opacity-50"
+                            >
+                              {otpSending ? "Sending..." : "Verify Email"}
+                            </button>
+                          </motion.div>
+                        ) : null}
+                        {authMode === "signup" && validSignupEmail && otpSent ? (
+                          <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="mt-2 space-y-1.5">
+                            <div className="flex items-center justify-between text-[10px] text-neutral-500">
+                              <span>Code sent to {signupEmail}</span>
+                              {!emailVerified && resendSeconds === 0 ? (
+                                <button type="button" onClick={handleSendSignupOtp} className="text-white hover:text-neutral-300 underline">
+                                  Resend code
+                                </button>
+                              ) : !emailVerified ? (
+                                <span>Resend in {resendSeconds}s</span>
+                              ) : null}
+                            </div>
+                            <InlineOtp value={otp} onChange={setOtp} disabled={emailVerified} status={otpStatus} onComplete={handleVerifySignupOtp} />
+                            {otpStatus === "success" ? (
+                              <p className="text-[10px] text-green-400"><i className="fa-solid fa-check mr-1" />Email verified</p>
+                            ) : otpError ? (
+                              <p className="text-[10px] text-red-400">{otpError}</p>
+                            ) : null}
+                          </motion.div>
+                        ) : null}
+                      </motion.div>,
                       /* @__PURE__ */ jsxs(motion.div, { variants: itemVariants, children: [
                         /* @__PURE__ */ jsx("label", { className: "block text-xs font-medium text-[var(--muted)] mb-1.5 pl-0.5", children: "Select University Role" }),
                         /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-2 gap-2 p-1 rounded-[14px] bg-[#141416] border border-white/10", children: [
@@ -512,96 +561,90 @@ const AuthScreen = ({
                         ] }),
                         /* @__PURE__ */ jsx("p", { className: "text-[10px] text-neutral-500 mt-1 pl-1", children: "* Administrator clearance accounts are provisioned directly by campus IT." })
                       ] }),
-                      /* @__PURE__ */ jsxs(motion.div, { variants: itemVariants, children: [
-                        /* @__PURE__ */ jsx("label", { className: "block text-xs font-medium text-[var(--muted)] mb-1.5 pl-0.5", children: "Password" }),
-                        /* @__PURE__ */ jsxs("div", { className: "relative", children: [
-                          /* @__PURE__ */ jsx(
-                            "input",
-                            {
-                              id: "signup-password-input",
-                              type: showSignupPassword ? "text" : "password",
-                              required: true,
-                              value: signupPassword,
-                              onChange: (e) => setSignupPassword(e.target.value),
-                              placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
-                              className: "w-full bg-[#141416] text-white border border-white/10 rounded-[14px] px-4 py-3.5 pr-11 text-sm placeholder:text-[#8e8e8e] focus:outline-none focus:border-white/40 focus:ring-1 focus:ring-white/20 transition-all font-mono"
-                            }
-                          ),
-                          /* @__PURE__ */ jsx(
-                            "button",
-                            {
-                              type: "button",
-                              onClick: () => setShowSignupPassword(!showSignupPassword),
-                              className: "absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white transition-colors p-1 cursor-pointer",
-                              title: showSignupPassword ? "Hide password" : "Show password",
-                              children: /* @__PURE__ */ jsx(
-                                "i",
-                                {
-                                  className: `fa-solid ${showSignupPassword ? "fa-eye-slash" : "fa-eye"} text-xs`
-                                }
-                              )
-                            }
-                          )
-                        ] })
-                      ] }),
-                      /* @__PURE__ */ jsxs(motion.div, { variants: itemVariants, children: [
-                        /* @__PURE__ */ jsx("label", { className: "block text-xs font-medium text-[var(--muted)] mb-1.5 pl-0.5", children: "Confirm Password" }),
-                        /* @__PURE__ */ jsxs("div", { className: "relative", children: [
-                          /* @__PURE__ */ jsx(
-                            "input",
-                            {
-                              id: "signup-confirm-password-input",
-                              type: showSignupConfirmPassword ? "text" : "password",
-                              required: true,
-                              value: signupConfirmPassword,
-                              onChange: (e) => setSignupConfirmPassword(e.target.value),
-                              placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
-                              className: "w-full bg-[#141416] text-white border border-white/10 rounded-[14px] px-4 py-3.5 pr-11 text-sm placeholder:text-[#8e8e8e] focus:outline-none focus:border-white/40 focus:ring-1 focus:ring-white/20 transition-all font-mono"
-                            }
-                          ),
-                          /* @__PURE__ */ jsx(
-                            "button",
-                            {
-                              type: "button",
-                              onClick: () => setShowSignupConfirmPassword(!showSignupConfirmPassword),
-                              className: "absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white transition-colors p-1 cursor-pointer",
-                              title: showSignupConfirmPassword ? "Hide password" : "Show password",
-                              children: /* @__PURE__ */ jsx(
-                                "i",
-                                {
-                                  className: `fa-solid ${showSignupConfirmPassword ? "fa-eye-slash" : "fa-eye"}`
-                                }
-                              )
-                            }
-                          )
-                        ] })
-                      ] }),
-                      /* @__PURE__ */ jsx(motion.div, { variants: itemVariants, className: "pt-2", children: /* @__PURE__ */ jsxs(
-                        "button",
-                        {
-                          type: "submit",
-                          id: "submit-create-account-btn",
-                          style: buttonGlowStyle,
-                          className: "w-full bg-white hover:bg-neutral-100 text-black font-semibold text-sm py-3.5 px-6 rounded-full transition-all active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2",
-                          children: [
-                            /* @__PURE__ */ jsx("span", { children: submitting ? "Creating Account..." : "Create Account" }),
-                            /* @__PURE__ */ jsx("i", { className: "fa-solid fa-arrow-right text-xs" })
-                          ]
-                        }
-                      ) }),
-                      /* @__PURE__ */ jsx(motion.div, { variants: itemVariants, children: /* @__PURE__ */ jsxs("p", { className: "text-xs text-[var(--muted)] text-center mt-3", children: [
-                        "Already have an account?",
-                        " ",
-                        /* @__PURE__ */ jsx(
-                          "button",
-                          {
-                            type: "button",
-                            onClick: () => setAuthMode("login"),
-                            className: "text-white hover:underline font-medium cursor-pointer ml-1",
-                            children: "Sign in"
-                          }
-                        )
-                      ] }) })
+                      <motion.div variants={itemVariants}>
+                        <label className="block text-xs font-medium text-[var(--muted)] mb-1.5 pl-0.5">Password</label>
+                        <StarBorder className="w-full" color="white" speed="5s" thickness={1} backgroundColor="#141416" borderColor="rgba(255, 255, 255, 0.1)">
+                          <div className="relative">
+                            <input
+                              id="signup-password-input"
+                              type={showSignupPassword ? "text" : "password"}
+                              required
+                              value={signupPassword}
+                              onChange={(e) => setSignupPassword(e.target.value)}
+                              placeholder="••••••••••••"
+                              className="w-full bg-transparent text-white rounded-[13px] px-4 py-3.5 pr-11 text-sm placeholder:text-[#8e8e8e] focus:outline-none transition-all font-mono"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowSignupPassword(!showSignupPassword)}
+                              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white transition-colors p-1 cursor-pointer"
+                              title={showSignupPassword ? "Hide password" : "Show password"}
+                            >
+                              <i className={`fa-solid ${showSignupPassword ? "fa-eye-slash" : "fa-eye"} text-xs`} />
+                            </button>
+                          </div>
+                        </StarBorder>
+                      </motion.div>,
+                      <motion.div variants={itemVariants}>
+                        <label className="block text-xs font-medium text-[var(--muted)] mb-1.5 pl-0.5">Confirm Password</label>
+                        <StarBorder className="w-full" color="white" speed="5s" thickness={1} backgroundColor="#141416" borderColor="rgba(255, 255, 255, 0.1)">
+                          <div className="relative">
+                            <input
+                              id="signup-confirm-password-input"
+                              type={showSignupConfirmPassword ? "text" : "password"}
+                              required
+                              value={signupConfirmPassword}
+                              onChange={(e) => setSignupConfirmPassword(e.target.value)}
+                              placeholder="••••••••••••"
+                              className="w-full bg-transparent text-white rounded-[13px] px-4 py-3.5 pr-11 text-sm placeholder:text-[#8e8e8e] focus:outline-none transition-all font-mono"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowSignupConfirmPassword(!showSignupConfirmPassword)}
+                              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white transition-colors p-1 cursor-pointer"
+                              title={showSignupConfirmPassword ? "Hide password" : "Show password"}
+                            >
+                              <i className={`fa-solid ${showSignupConfirmPassword ? "fa-eye-slash" : "fa-eye"}`} />
+                            </button>
+                          </div>
+                        </StarBorder>
+                      </motion.div>,
+                      <motion.div variants={itemVariants} className="pt-2 grid grid-cols-3 gap-2.5">
+                        <button
+                          type="submit"
+                          id="submit-create-account-btn"
+                          style={buttonGlowStyle}
+                          className="col-span-2 w-full bg-white hover:bg-neutral-100 text-black font-semibold text-sm py-3.5 px-4 rounded-full transition-all active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2"
+                        >
+                          <span>{submitting ? "Creating Account..." : "Create Account"}</span>
+                          <i className="fa-solid fa-arrow-right text-xs" />
+                        </button>
+
+                        <div className="col-span-1">
+                          <button
+                            type="button"
+                            id="google-sign-up-btn"
+                            onClick={handleGoogleSignIn}
+                            aria-label="Continue with Google"
+                            title="Continue with Google"
+                            className="w-full h-full py-3.5 rounded-full border border-white/10 bg-[#141416] hover:bg-[#1e1e24] hover:border-white/30 text-white transition-all flex items-center justify-center cursor-pointer shadow-md active:scale-[0.98]"
+                          >
+                            <FcGoogle className="w-5 h-5 flex-shrink-0" />
+                          </button>
+                        </div>
+                      </motion.div>,
+                      <motion.div variants={itemVariants}>
+                        <p className="text-xs text-[var(--muted)] text-center mt-3">
+                          Already have an account?{" "}
+                          <button
+                            type="button"
+                            onClick={() => setAuthMode("login")}
+                            className="text-white hover:underline font-medium cursor-pointer ml-1"
+                          >
+                            Sign in
+                          </button>
+                        </p>
+                      </motion.div>
                     ]
                   },
                   "signup-form"

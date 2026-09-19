@@ -89,3 +89,42 @@ body {
 }
 
 .loading-screen { min-height: 100vh; display: grid; place-items: center; background: #000; color: #fff; font-family: 'Inter', sans-serif; }
+
+/* StarBorder Component Keyframes and Animations */
+@keyframes star-movement-bottom {
+  0% { transform: translate(0%, 0%); opacity: 1; }
+  100% { transform: translate(-100%, 0%); opacity: 0; }
+}
+
+@keyframes star-movement-top {
+  0% { transform: translate(0%, 0%); opacity: 1; }
+  100% { transform: translate(100%, 0%); opacity: 0; }
+}
+
+.animate-star-movement-bottom {
+  animation: star-movement-bottom linear infinite alternate;
+}
+
+.animate-star-movement-top {
+  animation: star-movement-top linear infinite alternate;
+}
+
+/* StarBorder Focus-Within Effect */
+.star-border-container .star-movement-glow {
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.star-border-container:focus-within .star-movement-glow {
+  opacity: 1;
+}
+
+.star-border-container .star-border-inner {
+  transition: border-color 0.3s ease-in-out;
+}
+
+.star-border-container:focus-within .star-border-inner {
+  border-color: rgba(255, 255, 255, 0.35) !important;
+}
+
+
