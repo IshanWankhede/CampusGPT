@@ -36,12 +36,18 @@ This document defines the tables, key columns, types, and relationships. Treat i
 |---|---|---|
 | id | UUID / SERIAL PK | |
 | email | VARCHAR, UNIQUE, NOT NULL | login identifier |
-| hashed_password | VARCHAR, NOT NULL | bcrypt hash |
+| hashed_password | VARCHAR, **NULLABLE** | bcrypt hash — nullable because Google OAuth users have no password |
 | full_name | VARCHAR, NOT NULL | |
 | role | ENUM('ADMIN','FACULTY','STUDENT'), NOT NULL | |
 | is_active | BOOLEAN, DEFAULT true | |
+| is_email_verified | BOOLEAN, DEFAULT false | set true after OTP verification, or immediately for Google OAuth users |
+| auth_provider | ENUM('LOCAL','GOOGLE'), DEFAULT 'LOCAL' | how this user authenticates |
+| google_id | VARCHAR, UNIQUE, NULLABLE | Google's `sub` (subject) identifier; null for LOCAL users |
+| profile_picture | VARCHAR, NULLABLE | populated from Google profile photo when available |
 | created_at | TIMESTAMPTZ, DEFAULT now() | |
 | updated_at | TIMESTAMPTZ | |
+
+> **Google OAuth restriction:** only email addresses on domains listed in `ALLOWED_EMAIL_DOMAINS` (e.g. `vit.edu`) may authenticate via Google — enforced server-side in the OAuth callback, not just at signup. See `ARCHITECTURE.md` §5.3.
 
 ### `departments`
 | Column | Type | Notes |
@@ -71,6 +77,21 @@ This document defines the tables, key columns, types, and relationships. Treat i
 | designation | VARCHAR | e.g. Professor, Assistant Professor |
 | employee_code | VARCHAR, UNIQUE | |
 | created_at | TIMESTAMPTZ | |
+
+### `otp_verifications`
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID / SERIAL PK | |
+| user_id | FK → `users.id`, NULLABLE, ON DELETE CASCADE | null when the OTP is requested pre-registration (inline email verification during signup, before an account exists) |
+| email | VARCHAR, NOT NULL | always populated; used to look up pre-registration OTPs when `user_id` is null |
+| otp_hash | VARCHAR, NOT NULL | hashed OTP code (same hashing approach as passwords) — never store the raw code |
+| purpose | ENUM('EMAIL_VERIFY','PASSWORD_RESET'), NOT NULL | one table serves both flows |
+| expires_at | TIMESTAMPTZ, NOT NULL | typically `now() + 10 minutes` |
+| attempts | INT, DEFAULT 0 | incremented on each failed verify; code invalidated at 5 |
+| is_used | BOOLEAN, DEFAULT false | set true once successfully verified (single-use) |
+| created_at | TIMESTAMPTZ, DEFAULT now() | used to enforce the rate limit (max 3 sends per 15 min per email+purpose) |
+
+> Composite index on `(email, purpose, is_used)` for fast active-OTP lookup — this is the primary lookup path since `user_id` may be null pre-registration.
 
 ---
 
@@ -307,6 +328,7 @@ This document defines the tables, key columns, types, and relationships. Treat i
 ```
 users (1) ─── (1) students
 users (1) ─── (1) faculty
+users (1) ─── (*) otp_verifications  (nullable FK — pre-registration OTPs key off email instead)
 
 departments (1) ─── (*) students
 departments (1) ─── (*) faculty
@@ -339,6 +361,8 @@ users (1) ─── (*) notices (as poster)
 
 - **Foreign keys**: index every FK column used in frequent lookups (`student_id`, `subject_id`, `session_id`, `document_id`, etc.) — SQLAlchemy/Alembic won't add these automatically unless declared.
 - **`users.email`**: unique index (login lookups).
+- **`users.google_id`**: unique index (Google OAuth lookups); nullable so this doesn't constrain LOCAL users.
+- **`otp_verifications(email, purpose, is_used)`**: composite index — this is the hot lookup path for both sending and verifying OTPs, including the pre-registration case where `user_id` is null.
 - **`students.roll_number`**, **`faculty.employee_code`**: unique indexes.
 - **`attendance_records(session_id, student_id)`**: unique composite index — prevents duplicate marks and speeds up per-student lookups.
 - **`assignment_submissions(assignment_id, student_id)`**: unique composite index.
