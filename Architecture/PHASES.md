@@ -26,20 +26,45 @@ This is the working checklist for building CampusGPT module by module. Check ite
 
 ## 🔄 Phase 2 — Authentication
 
-**Goal:** Register, login, JWT issuing, current-user resolution, role-based access control.
+**Goal:** Register, login, JWT issuing, current-user resolution, role-based access control, email verification (OTP), password reset, and Google OAuth (domain-restricted).
 
-- [ ] `users` table SQLAlchemy model (see `DB_SCHEMA.md` §1)
+### Core auth
+- [ ] `users` table SQLAlchemy model (see `DB_SCHEMA.md` §1) — including `is_email_verified`, `auth_provider`, `google_id`, `profile_picture`; `hashed_password` nullable
 - [ ] Alembic initialized, first migration creates `users` table
-- [ ] `POST /api/v1/auth/register` — hashes password (bcrypt), creates user
-- [ ] `POST /api/v1/auth/login` — verifies password, issues access + refresh JWT
+- [ ] `POST /api/v1/auth/register` — hashes password (bcrypt), creates user, auto-triggers OTP send
+- [ ] `POST /api/v1/auth/login` — verifies password, blocks unverified emails, issues access + refresh JWT
 - [ ] `POST /api/v1/auth/refresh` — issues new access token from a valid refresh token
 - [ ] `POST /api/v1/auth/logout`
 - [ ] `GET /api/v1/auth/me` — returns current user from JWT
 - [ ] `get_current_user` dependency (reusable across all future modules)
 - [ ] Role-check dependency (e.g. `require_role("ADMIN")`) reusable across all future modules
-- [ ] Manually tested via Swagger UI (`/docs`) or Postman: register → login → call `/me` with token → confirm role enforcement blocks wrong-role access
 
-**Acceptance criteria:** A user can register, log in, receive a token, and access `/me`; an endpoint protected with `require_role("ADMIN")` correctly rejects a STUDENT-role token.
+### OTP — email verification & password reset
+- [ ] `otp_verifications` table (see `DB_SCHEMA.md` §1) — migration applied
+- [ ] Resend account created, `RESEND_API_KEY` + `EMAIL_FROM` in `.env`
+- [ ] `core/email.py` — `send_email()` wrapper around Resend
+- [ ] `POST /api/v1/auth/send-otp` — rate-limited (3/15min), hashes OTP before storing
+- [ ] `POST /api/v1/auth/verify-otp` — attempt cap (5), single-use enforcement
+- [ ] `POST /api/v1/auth/forgot-password` — generic response regardless of email existence
+- [ ] `POST /api/v1/auth/reset-password` — verifies OTP, updates hashed password
+- [ ] Inline OTP verification on the signup form (shadcn `input-otp` component) — green/red visual states wired to real API responses
+- [ ] Frontend: ForgotPassword.jsx + ResetPassword.jsx screens, matching DESIGN.md
+
+### Google OAuth (domain-restricted)
+- [ ] Google Cloud project + OAuth consent screen configured
+- [ ] `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `ALLOWED_EMAIL_DOMAINS` in `.env`
+- [ ] `auth/oauth.py` — Authlib Google client setup
+- [ ] `GET /api/v1/auth/google/login` — redirects to Google consent screen
+- [ ] `GET /api/v1/auth/google/callback` — verifies `email_verified` + domain restriction server-side, finds-or-creates user, links existing LOCAL accounts by email, issues JWT
+- [ ] "Continue with Google" button on Sign In / Sign Up, matching existing design system
+- [ ] Frontend `/auth/callback` route handling the token redirect
+
+### Verification
+- [ ] Manually tested via Swagger UI (`/docs`) or Postman: register → OTP email received → verify → login → call `/me` with token → confirm role enforcement blocks wrong-role access
+- [ ] Forgot password tested end-to-end: request → OTP received → reset → login with new password succeeds
+- [ ] Google OAuth tested: `@vit.edu` email succeeds; non-`@vit.edu` email rejected with 403; unverified Google email rejected; repeat sign-in does not create a duplicate user
+
+**Acceptance criteria:** A user can register, verify their email via OTP, log in, receive a token, and access `/me`; an endpoint protected with `require_role("ADMIN")` correctly rejects a STUDENT-role token; forgot-password successfully resets a password end-to-end; Google sign-in works only for allowed domains and links/creates accounts correctly without duplicates.
 
 ---
 
