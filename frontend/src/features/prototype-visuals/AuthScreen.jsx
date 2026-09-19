@@ -77,11 +77,12 @@ const AuthScreen = ({
   const [authMode, setAuthMode] = useState("login");
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+  const [loginCollege, setLoginCollege] = useState("VIT");
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [loginRole, setLoginRole] = useState("student");
   const [forgotSent, setForgotSent] = useState(false);
   const [signupName, setSignupName] = useState("");
-  const [signupCollege, setSignupCollege] = useState("COEP");
+  const [signupCollege, setSignupCollege] = useState("VIT");
   const [signupEmail, setSignupEmail] = useState("");
   const [signupRole, setSignupRole] = useState("student");
   const [signupPassword, setSignupPassword] = useState("");
@@ -310,6 +311,40 @@ const AuthScreen = ({
                     onSubmit: handleLoginSubmit,
                     className: "space-y-4 w-full",
                     children: [
+                      /* College Selection Dropdown */
+                      <motion.div variants={itemVariants}>
+                        <label 
+                          htmlFor="login-college-select" 
+                          className="block text-xs font-medium text-neutral-400 mb-1.5 pl-0.5"
+                        >
+                          College / Institute
+                        </label>
+                        <StarBorder className="w-full" color="white" speed="5s" thickness={1} backgroundColor="#141416" borderColor="rgba(255, 255, 255, 0.1)">
+                          <div className="relative">
+                            <select
+                              id="login-college-select"
+                              value={loginCollege}
+                              onChange={(e) => setLoginCollege(e.target.value)}
+                              className="w-full bg-transparent text-white rounded-[13px] px-4 py-3.5 text-sm appearance-none focus:outline-none transition-all cursor-pointer pr-10"
+                            >
+                              <option value="COEP" className="bg-[#141416] text-white">
+                                COEP (College of Engineering Pune)
+                              </option>
+                              <option value="PICT" className="bg-[#141416] text-white">
+                                PICT (Pune Institute of Computer Technology)
+                              </option>
+                              <option value="VIT" className="bg-[#141416] text-white">
+                                VIT (Vishwakarma Institute of Technology)
+                              </option>
+                            </select>
+                            
+                            {/* Dropdown Chevron Arrow */}
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none text-xs flex items-center">
+                              <i className="fa-solid fa-chevron-down text-[11px]" />
+                            </div>
+                          </div>
+                        </StarBorder>
+                      </motion.div>,
                       <motion.div variants={itemVariants}>
                         <label className="block text-xs font-medium text-[var(--muted)] mb-1.5 pl-0.5">Campus Email</label>
                         <StarBorder className="w-full" color="white" speed="5s" thickness={1} backgroundColor="#141416" borderColor="rgba(255, 255, 255, 0.1)">
