@@ -259,15 +259,31 @@ flowchart LR
 
 **Security rule:** the `forgot-password` response is identical whether or not the email exists in the system — this prevents user enumeration (an attacker probing which emails are registered).
 
-### 5.3 Google OAuth (Domain-Restricted)
+### 5.3 Multi-College Support & Google OAuth (Domain-Restricted Per College)
 
-Users may alternatively sign in via Google, restricted to email domains listed in `ALLOWED_EMAIL_DOMAINS` (e.g. `vit.edu`). This is a second entry point into the *same* JWT-issuing system — every downstream dependency (`get_current_user`, `require_role`) behaves identically regardless of which method was used to authenticate.
+CampusGPT supports multiple colleges, each with its own required email domain. The college is selected by the user **before** providing an email — on both the local signup path and the Google OAuth path — and the email (or Google account) must match that specific college's domain, not just any domain from a flat allow-list.
 
-**Rules:**
+```
+COLLEGE_DOMAIN_MAP = {
+    "COEP": "coep.edu",   # ⚠️ verify actual domain (commonly coep.ac.in) before shipping
+    "PICT": "pict.edu",   # ⚠️ verify actual domain before shipping
+    "VIT":  "vit.edu",    # ⚠️ verify actual domain before shipping
+}
+```
+
+This map is defined **once**, in backend config, and imported by both validation paths below — never duplicated, since two copies drifting out of sync would silently start rejecting or accepting the wrong emails.
+
+**Path 1 — Local email+password signup:**
+- Request includes `college` alongside the existing signup fields
+- Backend looks up `required_domain = COLLEGE_DOMAIN_MAP[college]`
+- If the submitted email's domain doesn't match, reject with 400 before sending any OTP: `"Please enter a college email containing @{required_domain}"`
+
+**Path 2 — Google OAuth:**
 - Google's `email_verified` claim must be `true`, or the login is rejected
-- The email domain must exactly match an entry in `ALLOWED_EMAIL_DOMAINS` — enforced **server-side only**, never trusted from the frontend
-- If an email already exists as a `LOCAL` account, the Google identity is linked to it (sets `google_id`) rather than creating a duplicate user
-- New Google sign-ins create a user with `auth_provider = GOOGLE`, `is_email_verified = true`, `hashed_password = null`
+- The selected college must survive Google's redirect round-trip — carried through the OAuth `state` parameter (never a plain, tamperable query param re-read at the callback)
+- The resulting email's domain must match `COLLEGE_DOMAIN_MAP[college]` exactly, checked server-side only
+- If an email already exists as a `LOCAL` account, the Google identity is linked to it **only if the college on file matches** the college used for this Google sign-in attempt — a user cannot claim a different college than they originally registered under
+- New Google sign-ins create a user with `auth_provider = GOOGLE`, `is_email_verified = true`, `hashed_password = null`, `college = <selected>`
 
 ```mermaid
 sequenceDiagram
@@ -277,34 +293,38 @@ sequenceDiagram
     participant Google as Google OAuth
     participant DB as PostgreSQL
 
-    User->>FE: Clicks "Continue with Google"
-    FE->>API: GET /api/v1/auth/google/login
-    API->>Google: Redirect to consent screen
+    User->>FE: Selects college (COEP/PICT/VIT), clicks "Continue with Google"
+    FE->>API: GET /api/v1/auth/google/login?college=VIT
+    API->>API: Encode college into OAuth state param
+    API->>Google: Redirect to consent screen (state carries college)
     Google-->>User: Consent screen
     User->>Google: Approves
-    Google->>API: GET /auth/google/callback?code=...
+    Google->>API: GET /auth/google/callback?code=...&state=...
+    API->>API: Decode college from state
     API->>Google: Exchange code for tokens
     Google-->>API: ID token (email, email_verified, name, picture, sub)
 
     alt email_verified is false
         API-->>FE: 403 Email not verified
-    else domain not in ALLOWED_EMAIL_DOMAINS
-        API-->>FE: 403 Only @vit.edu accounts are allowed
+    else email domain != COLLEGE_DOMAIN_MAP[college]
+        API-->>FE: 400 Please enter a college email containing @{required_domain}
     else allowed
         API->>DB: Find user by email
-        alt found, auth_provider=LOCAL
+        alt found, auth_provider=LOCAL, college matches
             API->>DB: Link google_id to existing account
+        else found, college mismatch
+            API-->>FE: 403 College does not match your registered account
         else found, auth_provider=GOOGLE
             API->>DB: Return existing user
         else not found
-            API->>DB: Create user (auth_provider=GOOGLE, is_email_verified=true)
+            API->>DB: Create user (auth_provider=GOOGLE, is_email_verified=true, college=selected)
         end
         API->>API: Issue JWT (access + refresh) — same issuer as local login
         API-->>FE: Redirect with tokens
     end
 ```
 
-> 🔎 See [`UML_DIAGRAMS.md` §2.4–2.6](./UML_DIAGRAMS.md#2-auth--rbac-sequence-diagrams) for these three flows in full alongside the original registration/login/refresh diagrams.
+> 🔎 See [`UML_DIAGRAMS.md` §2.4–2.6](./UML_DIAGRAMS.md#2-auth--rbac-sequence-diagrams) for this flow alongside the local-signup domain check and the original registration/login/refresh diagrams.
 
 ---
 
@@ -386,9 +406,9 @@ POST   /api/v1/auth/verify-otp        # body: { email, otp, purpose }
 POST   /api/v1/auth/forgot-password   # body: { email } — always returns a generic response
 POST   /api/v1/auth/reset-password    # body: { email, otp, new_password }
 
-# Google OAuth (domain-restricted, e.g. @vit.edu)
-GET    /api/v1/auth/google/login      # redirects to Google's consent screen
-GET    /api/v1/auth/google/callback   # handles the redirect back, issues JWT
+# Google OAuth (domain-restricted per college — see §5.3)
+GET    /api/v1/auth/google/login?college=COEP|PICT|VIT   # redirects to Google's consent screen
+GET    /api/v1/auth/google/callback                       # handles the redirect back, issues JWT
 ```
 
 ### Users (admin-protected)
@@ -539,7 +559,7 @@ features/
 - **Auth:** JWT with expiry, bcrypt password hashing, refresh token rotation
 - **Authorization:** role check on every protected endpoint — never inferred from the frontend
 - **OTP:** hashed at rest, 10-minute expiry, single-use, rate-limited (3/15min), capped attempts (5)
-- **OAuth:** email domain restriction enforced server-side only; `email_verified` checked before trusting any Google identity; OAuth credentials never hardcoded
+- **OAuth:** email domain restriction enforced server-side only, per-college (`COLLEGE_DOMAIN_MAP`), never a flat single-domain check; `email_verified` checked before trusting any Google identity; college selection carried through the OAuth `state` parameter, never a tamperable query param; OAuth credentials never hardcoded
 - **API security:** CORS allow-list, rate limiting, strict Pydantic input validation
 - **File uploads:** validate type/size server-side, never trust client-supplied filenames, store with generated names
 - **Database:** parameterized queries only (SQLAlchemy handles this)
