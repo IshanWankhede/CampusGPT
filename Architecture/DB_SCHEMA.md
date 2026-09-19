@@ -39,6 +39,7 @@ This document defines the tables, key columns, types, and relationships. Treat i
 | hashed_password | VARCHAR, **NULLABLE** | bcrypt hash — nullable because Google OAuth users have no password |
 | full_name | VARCHAR, NOT NULL | |
 | role | ENUM('ADMIN','FACULTY','STUDENT'), NOT NULL | |
+| college | ENUM('COEP','PICT','VIT'), NOT NULL | selected at signup; determines which email domain is required (see below) |
 | is_active | BOOLEAN, DEFAULT true | |
 | is_email_verified | BOOLEAN, DEFAULT false | set true after OTP verification, or immediately for Google OAuth users |
 | auth_provider | ENUM('LOCAL','GOOGLE'), DEFAULT 'LOCAL' | how this user authenticates |
@@ -47,7 +48,14 @@ This document defines the tables, key columns, types, and relationships. Treat i
 | created_at | TIMESTAMPTZ, DEFAULT now() | |
 | updated_at | TIMESTAMPTZ | |
 
-> **Google OAuth restriction:** only email addresses on domains listed in `ALLOWED_EMAIL_DOMAINS` (e.g. `vit.edu`) may authenticate via Google — enforced server-side in the OAuth callback, not just at signup. See `ARCHITECTURE.md` §5.3.
+> **Multi-college domain restriction:** each college maps to exactly one required email domain, enforced server-side on both the local email+password signup path and the Google OAuth path:
+> | College | Required domain |
+> |---|---|
+> | COEP | `coep.edu` *(verify — commonly `coep.ac.in`, confirm before shipping)* |
+> | PICT | `pict.edu` *(verify actual domain before shipping)* |
+> | VIT | `vit.edu` *(verify actual domain before shipping)* |
+>
+> This mapping (`COLLEGE_DOMAIN_MAP`) lives once in backend config — never duplicated across the local-signup validator and the Google OAuth callback. See `ARCHITECTURE.md` §5.3.
 
 ### `departments`
 | Column | Type | Notes |
