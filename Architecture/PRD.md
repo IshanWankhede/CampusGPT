@@ -82,6 +82,8 @@ Face recognition, voice assistant, and advanced recommendations are explicitly *
 - Faculty/Admin accounts are provisioned by an Admin (no public faculty self-signup)
 - Course documents are primarily PDF
 - LLM access is via an external API (Claude or equivalent) — no self-hosted model required for v1
+- Email+password signup requires OTP-based email verification before login is allowed; Google OAuth sign-in is restricted to the institution's email domain (e.g. `@vit.edu`) and is pre-verified by Google
+- Transactional email (OTP delivery) is handled via Resend; a verified sending domain is required before emails can reach recipients outside the developer's own test account
 
 ## 10. Release Criteria (v1 "Done")
 
