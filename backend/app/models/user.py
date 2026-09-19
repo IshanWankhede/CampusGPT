@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, String, Uuid, func
+from sqlalchemy import Boolean, DateTime, Enum, String, Text, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import Base
@@ -48,7 +48,7 @@ class User(Base):
         server_default="LOCAL",
     )
     google_id: Mapped[str | None] = mapped_column(String(255), nullable=True, unique=True)
-    profile_picture: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    profile_picture: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
     is_email_verified: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="false"

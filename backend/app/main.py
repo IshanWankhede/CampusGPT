@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.auth.router import router as auth_router
 from app.core.config import settings
 
+# CampusGPT FastAPI Application
 app = FastAPI(title="CampusGPT API")
 
 app.add_middleware(
