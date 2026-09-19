@@ -9,7 +9,7 @@ This file is the visual companion to [`ARCHITECTURE.md`](./ARCHITECTURE.md). It 
 ## Table of Contents
 
 1. [Domain Class Diagram (ERD-style UML)](#1-domain-class-diagram-erd-style-uml)
-2. [Auth & RBAC Sequence Diagrams](#2-auth--rbac-sequence-diagrams)
+2. [Auth & RBAC Sequence Diagrams](#2-auth--rbac-sequence-diagrams) *(incl. OTP verification, forgot password, Google OAuth)*
 3. [Attendance Flow](#3-attendance-flow)
 4. [Timetable Flow](#4-timetable-flow)
 5. [Assignment Lifecycle](#5-assignment-lifecycle)
@@ -19,7 +19,7 @@ This file is the visual companion to [`ARCHITECTURE.md`](./ARCHITECTURE.md). It 
 9. [AI Chatbot Intent Router](#9-ai-chatbot-intent-router)
 10. [Notifications Flow](#10-notifications-flow)
 11. [Backend Request Lifecycle (Four-Layer Pattern)](#11-backend-request-lifecycle-four-layer-pattern)
-12. [State Diagrams](#12-state-diagrams)
+12. [State Diagrams](#12-state-diagrams) *(incl. OTP lifecycle, auth provider state)*
 
 ---
 
@@ -34,9 +34,25 @@ classDiagram
         +String email
         +String passwordHash
         +Role role
+        +Boolean isEmailVerified
+        +AuthProvider authProvider
+        +String googleId
+        +String profilePicture
         +DateTime createdAt
         +login()
         +refreshToken()
+    }
+
+    class OtpVerification {
+        +UUID id
+        +UUID userId
+        +String email
+        +String otpHash
+        +OtpPurpose purpose
+        +DateTime expiresAt
+        +int attempts
+        +Boolean isUsed
+        +DateTime createdAt
     }
 
     class Student {
@@ -271,6 +287,119 @@ flowchart LR
     D --> E[Retry original request]
     B -- No / expired --> F[Force logout]
     F --> G[Redirect to login]
+```
+
+### 2.4 Email Verification (OTP)
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant FE as React Frontend
+    participant API as FastAPI /auth
+    participant Email as Resend
+    participant DB as PostgreSQL
+
+    User->>FE: Enters email on signup form
+    FE->>API: POST /auth/send-otp {email, purpose: EMAIL_VERIFY}
+    API->>DB: Check rate limit (3 sends / 15 min)
+    alt rate limited
+        API-->>FE: 429 Too many requests
+    else within limit
+        API->>API: Generate 6-digit OTP, hash it
+        API->>DB: INSERT otp_verifications (email, otp_hash, expires_at = now+10min)
+        API->>Email: send_email(otp)
+        API-->>FE: 200 OK
+    end
+
+    User->>FE: Enters OTP code (shadcn input-otp)
+    FE->>API: POST /auth/verify-otp {email, otp, purpose}
+    API->>DB: Fetch latest non-used OTP for email+purpose
+    alt expired or not found
+        API-->>FE: 400 Invalid or expired code
+    else attempts >= 5
+        API->>DB: Mark is_used=true (invalidate)
+        API-->>FE: 400 Too many attempts
+    else hash mismatch
+        API->>DB: Increment attempts
+        API-->>FE: 400 Incorrect code
+        FE->>FE: OTP boxes flash red, clear for retry
+    else match
+        API->>DB: Mark is_used=true; set users.is_email_verified=true
+        API-->>FE: 200 Verified
+        FE->>FE: OTP boxes turn green, lock
+    end
+```
+
+### 2.5 Forgot Password
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant FE as React Frontend
+    participant API as FastAPI /auth
+    participant Email as Resend
+    participant DB as PostgreSQL
+
+    User->>FE: Clicks "Forgot password?"
+    FE->>API: POST /auth/forgot-password {email}
+    API->>DB: Look up user by email
+    Note over API,DB: Response is identical whether or not the email exists — prevents user enumeration
+    alt user found
+        API->>DB: INSERT otp_verifications (purpose=PASSWORD_RESET)
+        API->>Email: send_email(otp)
+    end
+    API-->>FE: 200 "If an account exists, a code has been sent"
+
+    User->>FE: Enters OTP + new password + confirm
+    FE->>API: POST /auth/reset-password {email, otp, new_password}
+    API->>DB: Verify OTP (same logic as 2.4)
+    alt valid
+        API->>API: Hash new_password (bcrypt)
+        API->>DB: UPDATE users.hashed_password
+        API->>DB: Mark OTP is_used=true
+        API-->>FE: 200 Password updated
+    else invalid
+        API-->>FE: 400 Invalid or expired code
+    end
+```
+
+### 2.6 Google OAuth (Domain-Restricted)
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant FE as React Frontend
+    participant API as FastAPI /auth
+    participant Google as Google OAuth
+    participant DB as PostgreSQL
+
+    User->>FE: Clicks "Continue with Google"
+    FE->>API: GET /auth/google/login
+    API->>Google: Redirect to consent screen (Authlib)
+    Google-->>User: Consent screen
+    User->>Google: Approves
+    Google->>API: GET /auth/google/callback?code=...
+    API->>Google: Exchange code for tokens
+    Google-->>API: ID token {email, email_verified, name, picture, sub}
+
+    alt email_verified == false
+        API-->>FE: 403 Email address is not verified
+    else domain not in ALLOWED_EMAIL_DOMAINS
+        API-->>FE: 403 Only @vit.edu accounts are allowed
+    else allowed
+        API->>DB: SELECT user WHERE email = ?
+        alt found, auth_provider = LOCAL
+            API->>DB: UPDATE user SET google_id = ?
+            Note over API,DB: Links Google identity to the existing local account
+        else found, auth_provider = GOOGLE
+            API->>DB: (no change, just fetch)
+        else not found
+            API->>DB: INSERT user (auth_provider=GOOGLE, is_email_verified=true, hashed_password=null)
+        end
+        API->>API: Generate JWT (access + refresh) — identical to local login
+        API-->>FE: Redirect with tokens
+        FE->>FE: Store tokens, navigate to placeholder dashboard
+    end
 ```
 
 ---
@@ -607,6 +736,39 @@ stateDiagram-v2
     Refreshing --> LoggedOut : refresh failed/expired
     LoggedIn --> LoggedOut : logout / manual
     LoggedOut --> [*]
+```
+
+### 12.3 OTP Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> Sent : send-otp (rate limit passes)
+    Sent --> Verified : correct code, before expiry, attempts < 5
+    Sent --> AttemptFailed : incorrect code
+    AttemptFailed --> Sent : attempts < 5, retry
+    AttemptFailed --> Invalidated : attempts >= 5
+    Sent --> Expired : 10 minutes elapse
+    Verified --> [*]
+    Invalidated --> [*] : must call send-otp again
+    Expired --> [*] : must call send-otp again
+```
+
+### 12.4 User Auth Provider State
+
+```mermaid
+stateDiagram-v2
+    [*] --> LOCAL_Unverified : register (email+password)
+    LOCAL_Unverified --> LOCAL_Verified : OTP verified
+    LOCAL_Verified --> LOCAL_Linked : signs in with Google using same email
+    [*] --> GOOGLE_Verified : first sign-in via Google (@allowed domain)
+    LOCAL_Linked --> LOCAL_Linked : can now log in via either method
+    note right of LOCAL_Unverified
+        Cannot log in until verified
+    end note
+    note right of GOOGLE_Verified
+        is_email_verified = true immediately
+        (Google already verified it)
+    end note
 ```
 
 ---
