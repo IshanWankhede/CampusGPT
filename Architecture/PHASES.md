@@ -29,7 +29,7 @@ This is the working checklist for building CampusGPT module by module. Check ite
 **Goal:** Register, login, JWT issuing, current-user resolution, role-based access control, email verification (OTP), password reset, and Google OAuth (domain-restricted).
 
 ### Core auth
-- [ ] `users` table SQLAlchemy model (see `DB_SCHEMA.md` §1) — including `is_email_verified`, `auth_provider`, `google_id`, `profile_picture`; `hashed_password` nullable
+- [ ] `users` table SQLAlchemy model (see `DB_SCHEMA.md` §1) — including `college`, `is_email_verified`, `auth_provider`, `google_id`, `profile_picture`; `hashed_password` nullable
 - [ ] Alembic initialized, first migration creates `users` table
 - [ ] `POST /api/v1/auth/register` — hashes password (bcrypt), creates user, auto-triggers OTP send
 - [ ] `POST /api/v1/auth/login` — verifies password, blocks unverified emails, issues access + refresh JWT
@@ -50,21 +50,27 @@ This is the working checklist for building CampusGPT module by module. Check ite
 - [ ] Inline OTP verification on the signup form (shadcn `input-otp` component) — green/red visual states wired to real API responses
 - [ ] Frontend: ForgotPassword.jsx + ResetPassword.jsx screens, matching DESIGN.md
 
-### Google OAuth (domain-restricted)
+### Multi-college support & Google OAuth (domain-restricted per college)
+- [ ] Confirm ACTUAL official email domains for COEP, PICT, VIT before implementing (do not ship with unverified guesses — e.g. COEP may be `coep.ac.in`, not `coep.edu`)
+- [ ] `college` ENUM column added to `users` table (migration applied)
+- [ ] `COLLEGE_DOMAIN_MAP` defined once in backend config — imported by both the local-signup validator and the Google OAuth callback, never duplicated
 - [ ] Google Cloud project + OAuth consent screen configured
-- [ ] `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `ALLOWED_EMAIL_DOMAINS` in `.env`
+- [ ] `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` in `.env`
 - [ ] `auth/oauth.py` — Authlib Google client setup
-- [ ] `GET /api/v1/auth/google/login` — redirects to Google consent screen
-- [ ] `GET /api/v1/auth/google/callback` — verifies `email_verified` + domain restriction server-side, finds-or-creates user, links existing LOCAL accounts by email, issues JWT
-- [ ] "Continue with Google" button on Sign In / Sign Up, matching existing design system
-- [ ] Frontend `/auth/callback` route handling the token redirect
+- [ ] Local signup: `college` field required, submitted email validated against `COLLEGE_DOMAIN_MAP[college]` BEFORE sending any OTP; mismatch shows "Please enter a college email containing @{domain}"
+- [ ] `GET /api/v1/auth/google/login?college=X` — encodes college into the OAuth `state` param
+- [ ] `GET /api/v1/auth/google/callback` — decodes college from `state`, verifies `email_verified` + per-college domain match server-side, finds-or-creates user, links existing LOCAL accounts only if college matches, issues JWT
+- [ ] "Select Your College" control on Sign Up form, shown before the email field; email placeholder updates dynamically per selection
+- [ ] Frontend inline validation mirrors the backend's exact error message
+- [ ] "Continue with Google" button — disabled/prompts until a college is selected
+- [ ] Frontend `/auth/callback` route handling the token redirect, including domain-mismatch error display
 
 ### Verification
 - [ ] Manually tested via Swagger UI (`/docs`) or Postman: register → OTP email received → verify → login → call `/me` with token → confirm role enforcement blocks wrong-role access
 - [ ] Forgot password tested end-to-end: request → OTP received → reset → login with new password succeeds
-- [ ] Google OAuth tested: `@vit.edu` email succeeds; non-`@vit.edu` email rejected with 403; unverified Google email rejected; repeat sign-in does not create a duplicate user
+- [ ] Google OAuth tested per college: correct-domain email succeeds for each of COEP/PICT/VIT; wrong-domain email (including a different college's domain) rejected with the exact matching error; unverified Google email rejected; repeat sign-in does not create a duplicate user; college mismatch on account-linking is rejected
 
-**Acceptance criteria:** A user can register, verify their email via OTP, log in, receive a token, and access `/me`; an endpoint protected with `require_role("ADMIN")` correctly rejects a STUDENT-role token; forgot-password successfully resets a password end-to-end; Google sign-in works only for allowed domains and links/creates accounts correctly without duplicates.
+**Acceptance criteria:** A user can register, verify their email via OTP, log in, receive a token, and access `/me`; an endpoint protected with `require_role("ADMIN")` correctly rejects a STUDENT-role token; forgot-password successfully resets a password end-to-end; college selection + domain validation is enforced identically on both the local and Google OAuth paths, with real, confirmed institutional domains — no user can register or sign in with an email that doesn't match their selected college.
 
 ---
 
