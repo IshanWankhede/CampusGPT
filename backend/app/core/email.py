@@ -5,7 +5,6 @@ from app.core.config import settings
 
 def _template(title: str, otp: str, note: str) -> str:
     return f"""
-    ```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -208,7 +207,6 @@ def _template(title: str, otp: str, note: str) -> str:
 
 </body>
 </html>
-```
 
     """
 
