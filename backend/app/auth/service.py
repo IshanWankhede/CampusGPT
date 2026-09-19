@@ -110,8 +110,9 @@ def authenticate_user(
         return None
     if user.hashed_password and not verify_password(password, user.hashed_password):
         return None
-    if college and user.college and user.college != college:
-        raise ValueError("The selected college does not match your registered institution.")
+    if user.role != UserRole.ADMIN:
+        if college and user.college and user.college != college:
+            raise ValueError("The selected college does not match your registered institution.")
     return user
 
 

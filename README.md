@@ -190,6 +190,8 @@ Expected services:
 Migrations run automatically when the backend container starts. The current migration
 chain creates users, OTP verification records, and support for pre-registration email OTPs.
 
+First-time setup: run `python -m app.create_admin` once to create your initial Admin account before logging in.
+
 ### 6. Stop, restart, and rebuild
 
 ```bash
