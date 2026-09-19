@@ -100,6 +100,13 @@ const AuthScreen = ({
   const [emailVerified, setEmailVerified] = useState(false);
   const validSignupEmail = emailPattern.test(signupEmail.trim());
   useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const errorParam = urlParams.get("error");
+    if (errorParam) {
+      setRequestError(errorParam);
+    }
+  }, []);
+  useEffect(() => {
     if (!resendSeconds) return undefined;
     const timer = setInterval(() => setResendSeconds((seconds) => Math.max(0, seconds - 1)), 1000);
     return () => clearInterval(timer);
@@ -117,7 +124,7 @@ const AuthScreen = ({
     setOtpSending(true);
     setOtpError("");
     try {
-      await sendOtp(signupEmail.trim(), "EMAIL_VERIFY");
+      await sendOtp(signupEmail.trim(), "EMAIL_VERIFY", signupCollege);
       setOtpSent(true);
       setResendSeconds(60);
     } catch (error) {
@@ -151,14 +158,27 @@ const AuthScreen = ({
     }
   };
   const handleGoogleSignIn = () => {
-    console.log("Initiating Google SSO sign-in...");
+    setRequestError("");
+    if (!loginCollege) {
+      setRequestError("Please select your college first.");
+      return;
+    }
+    window.location.href = `/api/v1/auth/google/login?college=${encodeURIComponent(loginCollege)}`;
+  };
+  const handleGoogleSignUp = () => {
+    setRequestError("");
+    if (!signupCollege) {
+      setRequestError("Please select your college first.");
+      return;
+    }
+    window.location.href = `/api/v1/auth/google/login?college=${encodeURIComponent(signupCollege)}`;
   };
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setRequestError("");
     setSubmitting(true);
     try {
-      await login(loginEmail.trim(), loginPassword);
+      await login(loginEmail.trim(), loginPassword, loginCollege);
       navigate("/app", { replace: true });
     } catch (error) {
       setRequestError(error.message);
@@ -179,8 +199,14 @@ const AuthScreen = ({
     }
     setSubmitting(true);
     try {
-      await register(signupName.trim(), signupEmail.trim(), signupPassword, signupRole.toUpperCase());
-      await login(signupEmail.trim(), signupPassword);
+      await register(
+        signupName.trim(),
+        signupEmail.trim(),
+        signupPassword,
+        signupRole.toUpperCase(),
+        signupCollege
+      );
+      await login(signupEmail.trim(), signupPassword, signupCollege);
       navigate("/app", { replace: true });
     } catch (error) {
       setRequestError(error.message);
@@ -659,7 +685,7 @@ const AuthScreen = ({
                           <button
                             type="button"
                             id="google-sign-up-btn"
-                            onClick={handleGoogleSignIn}
+                            onClick={handleGoogleSignUp}
                             aria-label="Continue with Google"
                             title="Continue with Google"
                             className="w-full h-full py-3.5 rounded-full border border-white/10 bg-[#141416] hover:bg-[#1e1e24] hover:border-white/30 text-white transition-all flex items-center justify-center cursor-pointer shadow-md active:scale-[0.98]"

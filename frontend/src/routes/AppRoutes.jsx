@@ -18,6 +18,7 @@ function PublicRoutes() {
   return <Routes>
     <Route path="/" element={<LandingPage onGetStarted={() => navigate("/auth")} onSignIn={() => navigate("/auth")} />} />
     <Route path="/auth" element={<AuthPage onBackToLanding={() => navigate("/")} />} />
+    <Route path="/auth/callback" element={<AuthPage onBackToLanding={() => navigate("/")} />} />
     <Route path="/auth/verify-email" element={<VerifyEmail />} />
     <Route path="/auth/forgot-password" element={<ForgotPassword />} />
     <Route path="/auth/reset-password" element={<ResetPassword />} />

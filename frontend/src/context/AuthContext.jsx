@@ -31,6 +31,26 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(Boolean(session));
 
   useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlAccessToken = urlParams.get("access_token");
+    const urlRefreshToken = urlParams.get("refresh_token");
+
+    if (urlAccessToken && urlRefreshToken) {
+      const nextSession = { access_token: urlAccessToken, refresh_token: urlRefreshToken };
+      request("/me", {
+        headers: { Authorization: `Bearer ${urlAccessToken}` },
+      })
+        .then((user) => {
+          saveSession({ ...nextSession, user });
+          window.history.replaceState({}, document.title, "/app");
+          window.location.href = "/app";
+        })
+        .catch(() => {
+          setLoading(false);
+        });
+      return;
+    }
+
     if (!session?.access_token) {
       setLoading(false);
       return;
@@ -52,10 +72,10 @@ export function AuthProvider({ children }) {
     setSession(nextSession);
   };
 
-  const login = async (email, password) => {
+  const login = async (email, password, college) => {
     const nextSession = await request("/login", {
       method: "POST",
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, college }),
     });
     const user = await request("/me", {
       headers: { Authorization: `Bearer ${nextSession.access_token}` },
@@ -64,15 +84,15 @@ export function AuthProvider({ children }) {
     return user;
   };
 
-  const register = async (fullName, email, password, role) => {
+  const register = async (fullName, email, password, role, college) => {
     return request("/register", {
       method: "POST",
-      body: JSON.stringify({ full_name: fullName, email, password, role }),
+      body: JSON.stringify({ full_name: fullName, email, password, role, college }),
     });
   };
 
-  const sendOtp = (email, purpose) =>
-    request("/send-otp", { method: "POST", body: JSON.stringify({ email, purpose }) });
+  const sendOtp = (email, purpose, college) =>
+    request("/send-otp", { method: "POST", body: JSON.stringify({ email, purpose, college }) });
   const verifyOtp = (email, otp, purpose) =>
     request("/verify-otp", { method: "POST", body: JSON.stringify({ email, otp, purpose }) });
   const forgotPassword = (email) =>

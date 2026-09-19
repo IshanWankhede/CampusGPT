@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     ENV: str = "development"
     RESEND_API_KEY: str = ""
     EMAIL_FROM: str = "onboarding@resend.dev"
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/api/v1/auth/google/callback"
+    FRONTEND_URL: str = "http://localhost:5173"
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",

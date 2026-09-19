@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-from app.models.user import UserRole
+from app.models.user import AuthProvider, CollegeName, UserRole
 from app.models.otp_verification import OtpPurpose
 
 
@@ -12,11 +12,13 @@ class RegisterRequest(BaseModel):
     password: str = Field(min_length=8, max_length=128)
     full_name: str = Field(min_length=1, max_length=255)
     role: UserRole = UserRole.STUDENT
+    college: CollegeName = CollegeName.VIT
 
 
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=1, max_length=128)
+    college: CollegeName = CollegeName.VIT
 
 
 class RefreshRequest(BaseModel):
@@ -26,6 +28,7 @@ class RefreshRequest(BaseModel):
 class SendOtpRequest(BaseModel):
     email: EmailStr
     purpose: OtpPurpose
+    college: CollegeName | None = None
 
 
 class VerifyOtpRequest(BaseModel):
@@ -51,6 +54,9 @@ class UserResponse(BaseModel):
     email: EmailStr
     full_name: str
     role: UserRole
+    college: CollegeName | None = None
+    auth_provider: AuthProvider = AuthProvider.LOCAL
+    profile_picture: str | None = None
     is_active: bool
     is_email_verified: bool
     created_at: datetime

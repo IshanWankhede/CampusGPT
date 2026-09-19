@@ -12,9 +12,62 @@ from app.auth.schemas import RegisterRequest
 from app.core.config import settings
 from app.core.email import reset_email, send_email, verification_email
 from app.models.otp_verification import OtpPurpose
-from app.models.user import User, UserRole
+from app.models.user import CollegeName, User, UserRole
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+COLLEGE_DOMAIN_MAP: dict[CollegeName, str] = {
+    CollegeName.COEP: "coep.ac.in",
+    CollegeName.PICT: "pict.edu",
+    CollegeName.VIT: "vit.edu",
+}
+
+REVERSE_COLLEGE_DOMAIN_MAP: dict[str, CollegeName] = {
+    "coep.ac.in": CollegeName.COEP,
+    "coep.edu": CollegeName.COEP,
+    "coep.edu.in": CollegeName.COEP,
+    "pict.edu": CollegeName.PICT,
+    "vit.edu": CollegeName.VIT,
+}
+
+
+def validate_college_email_domain(email: str, college: CollegeName) -> None:
+    required_domain = COLLEGE_DOMAIN_MAP.get(college)
+    actual_domain = email.strip().lower().rsplit("@", 1)[-1]
+    if not required_domain or actual_domain != required_domain:
+        raise ValueError(f"Please enter a college email containing @{required_domain}")
+
+
+def derive_college_from_email(email: str) -> CollegeName:
+    domain = email.strip().lower().rsplit("@", 1)[-1]
+    college = REVERSE_COLLEGE_DOMAIN_MAP.get(domain)
+    if not college:
+        raise ValueError("This email domain is not associated with a recognized institution.")
+    return college
+
+
+def create_oauth_state(college: CollegeName) -> str:
+    now = datetime.now(timezone.utc)
+    payload = {
+        "college": college.value,
+        "nonce": secrets.token_hex(16),
+        "type": "oauth_state",
+        "iat": now,
+        "exp": now + timedelta(minutes=10),
+    }
+    return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+
+
+def verify_oauth_state(state_token: str) -> CollegeName:
+    try:
+        payload = jwt.decode(
+            state_token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
+        )
+        if payload.get("type") != "oauth_state" or not payload.get("college"):
+            raise ValueError("Invalid OAuth state type")
+        return CollegeName(payload["college"])
+    except Exception as exc:
+        raise ValueError("Invalid or expired OAuth state") from exc
 
 
 def hash_password(password: str) -> str:
@@ -27,6 +80,7 @@ def verify_password(password: str, hashed_password: str) -> bool:
 
 def register_user(db: Session, request: RegisterRequest) -> User:
     email = request.email.lower()
+    validate_college_email_domain(email, request.college)
     if repository.get_user_by_email(db, email):
         raise ValueError("A user with this email already exists")
     if not repository.has_recent_used_email_otp(db, email):
@@ -38,6 +92,7 @@ def register_user(db: Session, request: RegisterRequest) -> User:
             hashed_password=hash_password(request.password),
             full_name=request.full_name,
             role=request.role,
+            college=request.college,
         )
         user.is_email_verified = True
         db.commit()
@@ -47,10 +102,16 @@ def register_user(db: Session, request: RegisterRequest) -> User:
         raise ValueError("A user with this email already exists") from None
 
 
-def authenticate_user(db: Session, email: str, password: str) -> User | None:
+def authenticate_user(
+    db: Session, email: str, password: str, college: CollegeName | None = None
+) -> User | None:
     user = repository.get_user_by_email(db, email)
-    if user is None or not verify_password(password, user.hashed_password):
+    if user is None:
         return None
+    if user.hashed_password and not verify_password(password, user.hashed_password):
+        return None
+    if college and user.college and user.college != college:
+        raise ValueError("The selected college does not match your registered institution.")
     return user
 
 
@@ -59,11 +120,18 @@ def generate_otp() -> str:
 
 
 def create_and_send_otp(
-    db: Session, user: User | None, purpose: OtpPurpose, *, email: str | None = None
+    db: Session,
+    user: User | None,
+    purpose: OtpPurpose,
+    *,
+    email: str | None = None,
+    college: CollegeName | None = None,
 ) -> None:
     target_email = (email or (user.email if user else "")).lower()
     if not target_email:
         raise ValueError("An email address is required")
+    if purpose == OtpPurpose.EMAIL_VERIFY and college is not None:
+        validate_college_email_domain(target_email, college)
     if repository.count_recent_otps(
         db, purpose, user_id=user.id if user else None, email=target_email
     ) >= 3:

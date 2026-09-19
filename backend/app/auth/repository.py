@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
-from app.models.user import User
+from app.models.user import AuthProvider, CollegeName, User, UserRole
 from app.models.otp_verification import OtpPurpose, OtpVerification
 
 
@@ -17,13 +17,48 @@ def get_user_by_id(db: Session, user_id: uuid.UUID) -> User | None:
 
 
 def create_user(
-    db: Session, *, email: str, hashed_password: str, full_name: str, role: str
+    db: Session,
+    *,
+    email: str,
+    hashed_password: str,
+    full_name: str,
+    role: str,
+    college: CollegeName | None = None,
 ) -> User:
     user = User(
         email=email.lower(),
         hashed_password=hashed_password,
         full_name=full_name.strip(),
         role=role,
+        college=college,
+        auth_provider=AuthProvider.LOCAL,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def create_google_user(
+    db: Session,
+    *,
+    email: str,
+    full_name: str,
+    college: CollegeName,
+    google_id: str,
+    profile_picture: str | None = None,
+    role: UserRole = UserRole.STUDENT,
+) -> User:
+    user = User(
+        email=email.lower(),
+        hashed_password=None,
+        full_name=full_name.strip(),
+        role=role,
+        college=college,
+        auth_provider=AuthProvider.GOOGLE,
+        google_id=google_id,
+        profile_picture=profile_picture,
+        is_email_verified=True,
     )
     db.add(user)
     db.commit()
