@@ -34,6 +34,7 @@ classDiagram
         +String email
         +String passwordHash
         +Role role
+        +College college
         +Boolean isEmailVerified
         +AuthProvider authProvider
         +String googleId
@@ -299,16 +300,21 @@ sequenceDiagram
     participant Email as Resend
     participant DB as PostgreSQL
 
-    User->>FE: Enters email on signup form
-    FE->>API: POST /auth/send-otp {email, purpose: EMAIL_VERIFY}
-    API->>DB: Check rate limit (3 sends / 15 min)
-    alt rate limited
-        API-->>FE: 429 Too many requests
-    else within limit
-        API->>API: Generate 6-digit OTP, hash it
-        API->>DB: INSERT otp_verifications (email, otp_hash, expires_at = now+10min)
-        API->>Email: send_email(otp)
-        API-->>FE: 200 OK
+    User->>FE: Selects college (COEP/PICT/VIT), enters email on signup form
+    FE->>API: POST /auth/send-otp {email, college, purpose: EMAIL_VERIFY}
+    API->>API: required_domain = COLLEGE_DOMAIN_MAP[college]
+    alt email domain != required_domain
+        API-->>FE: 400 Please enter a college email containing @{required_domain}
+    else domain matches
+        API->>DB: Check rate limit (3 sends / 15 min)
+        alt rate limited
+            API-->>FE: 429 Too many requests
+        else within limit
+            API->>API: Generate 6-digit OTP, hash it
+            API->>DB: INSERT otp_verifications (email, otp_hash, expires_at = now+10min)
+            API->>Email: send_email(otp)
+            API-->>FE: 200 OK
+        end
     end
 
     User->>FE: Enters OTP code (shadcn input-otp)
@@ -363,7 +369,7 @@ sequenceDiagram
     end
 ```
 
-### 2.6 Google OAuth (Domain-Restricted)
+### 2.6 Multi-College Google OAuth (Domain-Restricted Per College)
 
 ```mermaid
 sequenceDiagram
@@ -373,28 +379,33 @@ sequenceDiagram
     participant Google as Google OAuth
     participant DB as PostgreSQL
 
+    User->>FE: Selects college (COEP/PICT/VIT)
     User->>FE: Clicks "Continue with Google"
-    FE->>API: GET /auth/google/login
-    API->>Google: Redirect to consent screen (Authlib)
+    FE->>API: GET /auth/google/login?college=VIT
+    API->>API: Encode college into OAuth state param
+    API->>Google: Redirect to consent screen (Authlib), state carries college
     Google-->>User: Consent screen
     User->>Google: Approves
-    Google->>API: GET /auth/google/callback?code=...
+    Google->>API: GET /auth/google/callback?code=...&state=...
+    API->>API: Decode college from state
     API->>Google: Exchange code for tokens
     Google-->>API: ID token {email, email_verified, name, picture, sub}
 
     alt email_verified == false
         API-->>FE: 403 Email address is not verified
-    else domain not in ALLOWED_EMAIL_DOMAINS
-        API-->>FE: 403 Only @vit.edu accounts are allowed
+    else email domain != COLLEGE_DOMAIN_MAP[college]
+        API-->>FE: 400 Please enter a college email containing @{required_domain}
     else allowed
         API->>DB: SELECT user WHERE email = ?
-        alt found, auth_provider = LOCAL
+        alt found, auth_provider = LOCAL, college matches
             API->>DB: UPDATE user SET google_id = ?
             Note over API,DB: Links Google identity to the existing local account
+        else found, college does NOT match
+            API-->>FE: 403 College does not match your registered account
         else found, auth_provider = GOOGLE
             API->>DB: (no change, just fetch)
         else not found
-            API->>DB: INSERT user (auth_provider=GOOGLE, is_email_verified=true, hashed_password=null)
+            API->>DB: INSERT user (auth_provider=GOOGLE, is_email_verified=true, college=selected, hashed_password=null)
         end
         API->>API: Generate JWT (access + refresh) — identical to local login
         API-->>FE: Redirect with tokens
@@ -757,10 +768,10 @@ stateDiagram-v2
 
 ```mermaid
 stateDiagram-v2
-    [*] --> LOCAL_Unverified : register (email+password)
+    [*] --> LOCAL_Unverified : register (email+password, college selected, domain validated)
     LOCAL_Unverified --> LOCAL_Verified : OTP verified
-    LOCAL_Verified --> LOCAL_Linked : signs in with Google using same email
-    [*] --> GOOGLE_Verified : first sign-in via Google (@allowed domain)
+    LOCAL_Verified --> LOCAL_Linked : signs in with Google using same email + matching college
+    [*] --> GOOGLE_Verified : first sign-in via Google (college selected, domain matches)
     LOCAL_Linked --> LOCAL_Linked : can now log in via either method
     note right of LOCAL_Unverified
         Cannot log in until verified
@@ -768,6 +779,11 @@ stateDiagram-v2
     note right of GOOGLE_Verified
         is_email_verified = true immediately
         (Google already verified it)
+    end note
+    note right of LOCAL_Linked
+        Linking is rejected if the Google
+        sign-in's college doesn't match
+        the college on the existing account
     end note
 ```
 
