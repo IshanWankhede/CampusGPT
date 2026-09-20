@@ -75,6 +75,17 @@ const LandingPage = ({
   const [activePreviewIndex, setActivePreviewIndex] = useState(0);
 
   const handleNav = (screen) => {
+    if (screen === "services" || screen === "capabilities") {
+      const el = document.getElementById("capabilities") || document.getElementById("services");
+      if (el) {
+        if (window.__lenis) {
+          window.__lenis.scrollTo(el, { duration: 1.2, offset: -40 });
+        } else {
+          el.scrollIntoView({ behavior: "smooth" });
+        }
+      }
+      return;
+    }
     if (screen === "auth") {
       if (onGetStarted) {
         onGetStarted();

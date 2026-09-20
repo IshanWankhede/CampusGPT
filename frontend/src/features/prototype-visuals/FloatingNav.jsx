@@ -21,8 +21,15 @@ const NAV_ITEMS = [
     id: "services",
     label: "Services",
     icon: "fa-solid fa-grip",
+    action: "services",
+    ariaLabel: "View Capabilities & Services section",
+  },
+  {
+    id: "dashboard",
+    label: "Dashboard",
+    icon: "fa-solid fa-table-cells-large",
     action: "auth",
-    ariaLabel: "View Services — Sign In required",
+    ariaLabel: "Go to Dashboard — Sign In required",
   },
   {
     id: "contact",
@@ -53,6 +60,20 @@ export default function FloatingNav({ onNavigate }) {
         window.__lenis.scrollTo(0, { duration: 1.2 });
       } else {
         document.getElementById("landing-screen")?.scrollIntoView({ behavior: "smooth" });
+      }
+      return;
+    }
+
+    if (item.action === "services" || item.id === "services") {
+      const el = document.getElementById("capabilities") || document.getElementById("services");
+      if (el) {
+        if (window.__lenis) {
+          window.__lenis.scrollTo(el, { duration: 1.2, offset: -40 });
+        } else {
+          el.scrollIntoView({ behavior: "smooth" });
+        }
+      } else if (onNavigate) {
+        onNavigate("services");
       }
       return;
     }
