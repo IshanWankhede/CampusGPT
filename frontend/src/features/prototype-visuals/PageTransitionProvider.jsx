@@ -21,9 +21,9 @@ import StairsPreloader from "./StairsPreloader";
 
 // ─── Timing (must match StairsPreloader config) ────────────────────────────
 // Stairs IN total = (NUM_COLUMNS - 1) * ENTER_STAGGER + ENTER_DURATION
-//                = (6 - 1) * 0.07s + 0.55s = 0.90s → 900ms
+//                = (8 - 1) * 0.06s + 0.50s = 0.92s → 920ms
 // Add 80ms buffer so last panel fully lands before we navigate
-const STAIRS_IN_MS = 980;
+const STAIRS_IN_MS = 1000;
 
 // How long to hold the closed state before beginning exit
 // (gives React time to render the new page underneath, usually one frame)
