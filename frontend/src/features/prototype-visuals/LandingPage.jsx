@@ -146,14 +146,14 @@ const LandingPage = ({
       </div>
 
       {/* =========================================================================
-          SECTION 1 — HERO (Contains Scoped Strands ONLY inside Hero)
+          SECTION 1 — HERO (Strands overflow seamlessly into Section 2)
           ========================================================================= */}
       <section
         id="hero-section"
-        className="relative z-10 w-full min-h-screen flex flex-col justify-between overflow-hidden"
+        className="relative z-10 w-full min-h-screen flex flex-col justify-between"
       >
-        {/* HERO-ONLY STRANDS LAYER (Spatially contained inside Hero) */}
-        <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+        {/* HERO STRANDS LAYER (Bleeds into Section 2 Marquee) */}
+        <div className="absolute top-0 left-0 right-0 -bottom-28 md:-bottom-40 z-0 pointer-events-none overflow-visible">
           <div className="absolute inset-0 z-[2] pointer-events-none opacity-85">
             <Strands
               colors={["#F97316", "#7C3AED", "#06B6D4"]}
