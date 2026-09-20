@@ -158,7 +158,7 @@ const LandingPage = ({
           hideDefaultCursor={true}
           parallaxOn={true}
           cursorColor="#ffffff"
-          cursorColorOnTarget="#c084fc"
+          cursorColorOnTarget="#fefefeff"
         />
       )}
       {/* =========================================================================
