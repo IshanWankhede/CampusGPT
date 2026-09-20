@@ -22,6 +22,13 @@ body {
   overflow-x: hidden;
 }
 
+/* Hide native browser cursors (including hand/pointer on hover) when fine pointer is active */
+@media (any-hover: hover) and (any-pointer: fine) {
+  *, *::before, *::after {
+    cursor: none !important;
+  }
+}
+
 .font-display {
   font-family: "BubbledotICG-FinePos", "Courier New", monospace;
 }
