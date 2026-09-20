@@ -169,7 +169,7 @@ const LandingPage = ({
               saturation={1.5}
               opacity={0.9}
               scale={1.2}
-              yOffset={-0.08}
+              yOffset={-0.18}
               glass={false}
             />
           </div>
