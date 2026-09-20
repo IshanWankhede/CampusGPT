@@ -1,67 +1,90 @@
 /**
- * PageTransitionProvider — Stairs preloader triggered on every route change.
+ * PageTransitionProvider — Stairs preloader with correct timing.
  *
- * How it works:
- * 1. On route change: stair panels animate IN (covering the screen)
- * 2. After stair-in delay: React Router has swapped the new page underneath
- * 3. Stair panels animate OUT (revealing the new page)
+ * ✅ CORRECT flow:
+ *   1. Call transitionTo("/path")
+ *   2. Stairs panels sweep IN (covering entire screen)
+ *   3. THEN React Router navigates — new page renders underneath (invisible)
+ *   4. Stairs panels sweep OUT (revealing the new page cleanly)
  *
- * The preloader sits on top (z-9999) so the new page loads underneath invisibly.
+ * ❌ OLD (broken) flow:
+ *   navigate() → new page flashes → stairs try to cover → too late
+ *
+ * Usage:
+ *   const transitionTo = useTransitionNavigate();
+ *   transitionTo("/auth");  // instead of navigate("/auth")
  */
 
-import { useState, useEffect, useRef, createContext, useContext, useCallback } from "react";
-import { useLocation } from "react-router-dom";
+import { useState, useCallback, createContext, useContext } from "react";
+import { useNavigate } from "react-router-dom";
 import StairsPreloader from "./StairsPreloader";
 
-const TransitionContext = createContext({ isTransitioning: false });
+// ─── Timing (must match StairsPreloader config) ────────────────────────────
+// Stairs IN total = (NUM_COLUMNS - 1) * ENTER_STAGGER + ENTER_DURATION
+//                = (6 - 1) * 0.07s + 0.55s = 0.90s → 900ms
+// Add 80ms buffer so last panel fully lands before we navigate
+const STAIRS_IN_MS = 980;
+
+// How long to hold the closed state before beginning exit
+// (gives React time to render the new page underneath, usually one frame)
+const HOLD_MS = 50;
+// ───────────────────────────────────────────────────────────────────────────
+
+const TransitionContext = createContext(null);
+
+/**
+ * Returns the transition-aware navigation function.
+ * Use this everywhere instead of useNavigate() directly.
+ */
+export function useTransitionNavigate() {
+  const ctx = useContext(TransitionContext);
+  if (!ctx) {
+    throw new Error("useTransitionNavigate must be used inside <PageTransitionProvider>");
+  }
+  return ctx.transitionTo;
+}
+
+/** @deprecated Use useTransitionNavigate() instead */
 export const usePageTransition = () => useContext(TransitionContext);
 
-// Time (ms) to keep stairs IN before hiding (triggering exit animation)
-// Enter total = (NUM_COLUMNS - 1) * ENTER_STAGGER + ENTER_DURATION
-// = (6 - 1) * 0.07s + 0.55s = 0.90s = ~900ms
-// Add 50ms buffer to let last panel fully land
-const STAIRS_IN_DURATION_MS = 950;
-
 export default function PageTransitionProvider({ children }) {
-  const location = useLocation();
-  const prevPathname = useRef(location.pathname);
+  const navigate = useNavigate();
   const [showPreloader, setShowPreloader] = useState(false);
-  const holdTimerRef = useRef(null);
 
-  useEffect(() => {
-    // Skip the very first mount
-    if (location.pathname === prevPathname.current) return;
-    prevPathname.current = location.pathname;
+  /**
+   * Transition-aware navigation:
+   * 1. Show stairs (animate IN)
+   * 2. Wait until stairs fully cover screen
+   * 3. Navigate (new page renders hidden underneath)
+   * 4. Brief hold (one frame for React to commit)
+   * 5. Hide stairs (animate OUT → new page revealed)
+   */
+  const transitionTo = useCallback(
+    (path, options) => {
+      // Don't double-trigger if already transitioning
+      if (showPreloader) return;
 
-    // Show the stair panels
-    setShowPreloader(true);
+      // Step 1: Cover the screen with stair panels
+      setShowPreloader(true);
 
-    // After the stair-in animation finishes, begin exit
-    // (The new route has already rendered underneath by now)
-    if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
-    holdTimerRef.current = setTimeout(() => {
-      setShowPreloader(false);
-    }, STAIRS_IN_DURATION_MS);
+      // Step 2+3+4: Wait → Navigate → Hold → Exit
+      setTimeout(() => {
+        // Navigate while completely covered — user sees nothing
+        navigate(path, options);
 
-    return () => {
-      if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname]);
-
-  const handlePreloaderComplete = useCallback(() => {
-    // All columns have exited — fully done
-    // (already hidden by showPreloader = false above)
-  }, []);
+        setTimeout(() => {
+          // Step 5: Reveal the new page by exiting stairs
+          setShowPreloader(false);
+        }, HOLD_MS);
+      }, STAIRS_IN_MS);
+    },
+    [navigate, showPreloader]
+  );
 
   return (
-    <TransitionContext.Provider value={{ isTransitioning: showPreloader }}>
-      {/* Stairs overlay — covers the page during transition */}
-      <StairsPreloader
-        isVisible={showPreloader}
-        onComplete={handlePreloaderComplete}
-      />
-      {/* Render the current route — new page loads underneath the stairs */}
+    <TransitionContext.Provider value={{ transitionTo, isTransitioning: showPreloader }}>
+      {/* Stairs overlay — covers during transition */}
+      <StairsPreloader isVisible={showPreloader} />
       {children}
     </TransitionContext.Provider>
   );
