@@ -1,6 +1,8 @@
 import { jsx, jsxs } from "react/jsx-runtime";
 import { useEffect, useRef, memo } from "react";
+
 const TWO_PI = Math.PI * 2;
+
 const DotField = memo(({
   dotRadius = 1.5,
   dotSpacing = 14,
@@ -25,32 +27,23 @@ const DotField = memo(({
   const sizeRef = useRef({ w: 0, h: 0, offsetX: 0, offsetY: 0 });
   const glowOpacity = useRef(0);
   const engagement = useRef(0);
+  // FIX 2: Cached gradient — created once on resize, NOT every frame
+  const gradRef = useRef(null);
+  // FIX 1: Track last drawn mouse position for idle-skip
+  const prevDrawRef = useRef({ x: -9999, y: -9999 });
+
   const propsRef = useRef({
-    dotRadius,
-    dotSpacing,
-    cursorRadius,
-    cursorForce,
-    bulgeOnly,
-    bulgeStrength,
-    sparkle,
-    waveAmplitude,
-    gradientFrom,
-    gradientTo
+    dotRadius, dotSpacing, cursorRadius, cursorForce, bulgeOnly,
+    bulgeStrength, sparkle, waveAmplitude, gradientFrom, gradientTo
   });
   propsRef.current = {
-    dotRadius,
-    dotSpacing,
-    cursorRadius,
-    cursorForce,
-    bulgeOnly,
-    bulgeStrength,
-    sparkle,
-    waveAmplitude,
-    gradientFrom,
-    gradientTo
+    dotRadius, dotSpacing, cursorRadius, cursorForce, bulgeOnly,
+    bulgeStrength, sparkle, waveAmplitude, gradientFrom, gradientTo
   };
+
   const rebuildRef = useRef(null);
   const glowIdRef = useRef(`dot-field-glow-${Math.random().toString(36).slice(2, 9)}`);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     const glowEl = glowRef.current;
@@ -59,10 +52,21 @@ const DotField = memo(({
     if (!ctx) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     let resizeTimer;
+
+    // FIX 2: Build gradient once, cache it — called on resize only
+    function buildGrad(w, h) {
+      const p = propsRef.current;
+      const grad = ctx.createLinearGradient(0, 0, w, h);
+      grad.addColorStop(0, p.gradientFrom);
+      grad.addColorStop(1, p.gradientTo);
+      gradRef.current = grad;
+    }
+
     function resize() {
       if (resizeTimer) clearTimeout(resizeTimer);
       resizeTimer = setTimeout(doResize, 100);
     }
+
     function doResize() {
       if (!canvas || !canvas.parentElement) return;
       const rect = canvas.parentElement.getBoundingClientRect();
@@ -74,13 +78,14 @@ const DotField = memo(({
       canvas.style.height = `${h}px`;
       ctx?.setTransform(dpr, 0, 0, dpr, 0, 0);
       sizeRef.current = {
-        w,
-        h,
+        w, h,
         offsetX: rect.left + window.scrollX,
         offsetY: rect.top + window.scrollY
       };
       buildDots(w, h);
+      buildGrad(w, h); // Build gradient once per resize
     }
+
     function buildDots(w, h) {
       const p = propsRef.current;
       const step = p.dotRadius + p.dotSpacing;
@@ -99,57 +104,86 @@ const DotField = memo(({
       }
       dotsRef.current = dots;
     }
+
     function onMouseMove(e) {
       const s = sizeRef.current;
       mouseRef.current.x = e.pageX - s.offsetX;
       mouseRef.current.y = e.pageY - s.offsetY;
     }
-    function updateMouseSpeed() {
+
+    // FIX 4: Mouse speed computed inside RAF tick — setInterval removed
+    let frameCount = 0;
+
+    function tick() {
+      frameCount++;
       const m = mouseRef.current;
-      const dx = m.prevX - m.x;
-      const dy = m.prevY - m.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      // ── Inline mouse speed (was a separate setInterval — FIX 4) ────────────
+      const dsx = m.prevX - m.x;
+      const dsy = m.prevY - m.y;
+      const dist = Math.sqrt(dsx * dsx + dsy * dsy);
       m.speed += (dist - m.speed) * 0.5;
       if (m.speed < 1e-3) m.speed = 0;
       m.prevX = m.x;
       m.prevY = m.y;
-    }
-    const speedInterval = setInterval(updateMouseSpeed, 20);
-    let frameCount = 0;
-    function tick() {
-      frameCount++;
-      const dots = dotsRef.current;
-      const m = mouseRef.current;
-      const { w, h } = sizeRef.current;
-      const p = propsRef.current;
-      const len = dots.length;
-      const t = frameCount * 0.02;
+
+      // ── Engagement tracking ─────────────────────────────────────────────────
       const targetEngagement = Math.min(m.speed / 5, 1);
       engagement.current += (targetEngagement - engagement.current) * 0.06;
       if (engagement.current < 1e-3) engagement.current = 0;
       const eng = engagement.current;
+
+      // ── Glow SVG update (cheap — always run) ────────────────────────────────
       glowOpacity.current += (eng - glowOpacity.current) * 0.08;
       if (glowEl) {
         glowEl.setAttribute("cx", m.x.toString());
         glowEl.setAttribute("cy", m.y.toString());
         glowEl.style.opacity = glowOpacity.current.toString();
       }
-      if (!ctx) return;
+
+      // ── FIX 1: IDLE SKIP — biggest performance win ──────────────────────────
+      // If nothing has changed visually, skip the expensive canvas redraw.
+      const p = propsRef.current;
+      const pd = prevDrawRef.current;
+      const mouseMoved = Math.abs(m.x - pd.x) > 0.5 || Math.abs(m.y - pd.y) > 0.5;
+      const hasWave = p.waveAmplitude > 0;
+
+      if (!mouseMoved && eng <= 0.005 && !hasWave) {
+        // Nothing to draw — re-queue without doing any canvas work
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
+      pd.x = m.x;
+      pd.y = m.y;
+      // ────────────────────────────────────────────────────────────────────────
+
+      const dots = dotsRef.current;
+      const { w, h } = sizeRef.current;
+      const len = dots.length;
+      const t = frameCount * 0.02;
+
+      if (!ctx) {
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
+
       ctx.clearRect(0, 0, w, h);
-      const grad = ctx.createLinearGradient(0, 0, w, h);
-      grad.addColorStop(0, p.gradientFrom);
-      grad.addColorStop(1, p.gradientTo);
-      ctx.fillStyle = grad;
+
+      // FIX 2: Use cached gradient — no per-frame object creation
+      ctx.fillStyle = gradRef.current || "#ffffff";
+
       const cr = p.cursorRadius;
       const crSq = cr * cr;
       const rad = p.dotRadius / 2;
       const isBulge = p.bulgeOnly;
+
       ctx.beginPath();
       for (let i = 0; i < len; i++) {
         const d = dots[i];
         const dx = m.x - d.ax;
         const dy = m.y - d.ay;
         const distSq = dx * dx + dy * dy;
+
         if (distSq < crSq && eng > 0.01) {
           const dist = Math.sqrt(distSq);
           if (isBulge) {
@@ -168,6 +202,7 @@ const DotField = memo(({
           d.sx += (d.ax - d.sx) * 0.1;
           d.sy += (d.ay - d.sy) * 0.1;
         }
+
         if (!isBulge) {
           d.vx *= 0.9;
           d.vy *= 0.9;
@@ -176,12 +211,15 @@ const DotField = memo(({
           d.sx += (d.x - d.sx) * 0.1;
           d.sy += (d.y - d.sy) * 0.1;
         }
+
         let drawX = d.sx;
         let drawY = d.sy;
+
         if (p.waveAmplitude > 0) {
           drawY += Math.sin(d.ax * 0.03 + t) * p.waveAmplitude;
           drawX += Math.cos(d.ay * 0.03 + t * 0.7) * p.waveAmplitude * 0.5;
         }
+
         if (p.sparkle) {
           const hash = (i * 2654435761 ^ frameCount >> 3) >>> 0;
           if (hash % 100 < 3) {
@@ -199,41 +237,58 @@ const DotField = memo(({
       ctx.fill();
       rafRef.current = requestAnimationFrame(tick);
     }
+
     doResize();
     window.addEventListener("resize", resize);
     window.addEventListener("mousemove", onMouseMove, { passive: true });
     rafRef.current = requestAnimationFrame(tick);
+
+    // FIX 3: Pause RAF when tab is hidden, resume when it becomes visible
+    const onVisibility = () => {
+      if (document.hidden) {
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      } else {
+        rafRef.current = requestAnimationFrame(tick);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
     rebuildRef.current = () => {
       const { w, h } = sizeRef.current;
-      if (w > 0 && h > 0) buildDots(w, h);
+      if (w > 0 && h > 0) {
+        buildDots(w, h);
+        buildGrad(w, h);
+      }
     };
+
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      clearInterval(speedInterval);
       if (resizeTimer) clearTimeout(resizeTimer);
       window.removeEventListener("resize", resize);
       window.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, []);
+
   useEffect(() => {
     rebuildRef.current?.();
   }, [dotRadius, dotSpacing]);
-  return /* @__PURE__ */ jsxs("div", { className: "w-full h-full relative", ...rest, children: [
-    /* @__PURE__ */ jsx(
-      "canvas",
-      {
+
+  return jsxs("div", {
+    className: "w-full h-full relative",
+    ...rest,
+    children: [
+      jsx("canvas", {
         ref: canvasRef,
         style: {
           position: "absolute",
           inset: 0,
           width: "100%",
-          height: "100%"
+          height: "100%",
+          willChange: "transform", // GPU layer hint
         }
-      }
-    ),
-    /* @__PURE__ */ jsxs(
-      "svg",
-      {
+      }),
+      jsxs("svg", {
         ref: svgRef,
         style: {
           position: "absolute",
@@ -243,28 +298,29 @@ const DotField = memo(({
           pointerEvents: "none"
         },
         children: [
-          /* @__PURE__ */ jsx("defs", { children: /* @__PURE__ */ jsxs("radialGradient", { id: glowIdRef.current, children: [
-            /* @__PURE__ */ jsx("stop", { offset: "0%", stopColor: glowColor }),
-            /* @__PURE__ */ jsx("stop", { offset: "100%", stopColor: "transparent" })
-          ] }) }),
-          /* @__PURE__ */ jsx(
-            "circle",
-            {
-              ref: glowRef,
-              cx: "-9999",
-              cy: "-9999",
-              r: glowRadius,
-              fill: `url(#${glowIdRef.current})`,
-              style: { opacity: 0, willChange: "opacity" }
-            }
-          )
+          jsx("defs", {
+            children: jsxs("radialGradient", {
+              id: glowIdRef.current,
+              children: [
+                jsx("stop", { offset: "0%", stopColor: glowColor }),
+                jsx("stop", { offset: "100%", stopColor: "transparent" })
+              ]
+            })
+          }),
+          jsx("circle", {
+            ref: glowRef,
+            cx: "-9999",
+            cy: "-9999",
+            r: glowRadius,
+            fill: `url(#${glowIdRef.current})`,
+            style: { opacity: 0, willChange: "opacity" }
+          })
         ]
-      }
-    )
-  ] });
+      })
+    ]
+  });
 });
+
 DotField.displayName = "DotField";
 var DotField_default = DotField;
-export {
-  DotField_default as default
-};
+export { DotField_default as default };

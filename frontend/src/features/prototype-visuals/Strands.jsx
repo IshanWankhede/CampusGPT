@@ -340,11 +340,25 @@ function Strands({
     });
     ro.observe(ctn);
     let animateId = 0;
+
+    // FIX: Cache palette — only rebuild when colors prop actually changes
+    // Previously buildPalette() was called every single frame (60x/sec = 480 allocs/sec)
+    let cachedPalette = buildPalette(propsRef.current.colors);
+    let lastColorsKey = propsRef.current.colors.join(",");
+
     const update = (t) => {
       animateId = requestAnimationFrame(update);
       const current = propsRef.current;
+
+      // Rebuild palette only when the colors array has actually changed
+      const colorsKey = current.colors.join(",");
+      if (colorsKey !== lastColorsKey) {
+        cachedPalette = buildPalette(current.colors);
+        lastColorsKey = colorsKey;
+      }
+
       program.uniforms.uTime.value = t * 1e-3;
-      program.uniforms.uColors.value = buildPalette(current.colors);
+      program.uniforms.uColors.value = cachedPalette; // reuse cached — no allocation
       program.uniforms.uColorCount.value = Math.min(current.colors.length, MAX_COLORS);
       program.uniforms.uStrandCount.value = Math.min(Math.max(Math.round(current.count), 1), MAX_STRANDS);
       program.uniforms.uSpeed.value = current.speed;
@@ -360,6 +374,7 @@ function Strands({
       program.uniforms.uScale.value = current.scale;
       program.uniforms.uSaturation.value = current.saturation;
       program.uniforms.uYOffset.value = current.yOffset;
+
       if (current.glass) {
         renderer.render({ scene: mesh, target: renderTarget });
         glassProgram.uniforms.uScene.value = renderTarget.texture;
@@ -372,10 +387,22 @@ function Strands({
       }
     };
     animateId = requestAnimationFrame(update);
+
+    // FIX: Pause WebGL render loop when tab is hidden, resume when visible
+    const onVisibility = () => {
+      if (document.hidden) {
+        cancelAnimationFrame(animateId);
+      } else {
+        animateId = requestAnimationFrame(update);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
     return () => {
       cancelAnimationFrame(animateId);
       cancelAnimationFrame(initFrame);
       window.removeEventListener("resize", resize);
+      document.removeEventListener("visibilitychange", onVisibility);
       ro.disconnect();
       if (ctn && gl.canvas.parentNode === ctn) {
         ctn.removeChild(gl.canvas);
