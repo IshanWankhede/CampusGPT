@@ -115,6 +115,31 @@ const LandingPage = ({
     return () => clearInterval(interval);
   }, []);
 
+  const [isTargetCursorActive, setIsTargetCursorActive] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const capEl = document.getElementById("capabilities");
+      const archEl = document.getElementById("how-it-works");
+
+      if (!capEl || !archEl) return;
+
+      const capRect = capEl.getBoundingClientRect();
+      const archRect = archEl.getBoundingClientRect();
+      const viewH = window.innerHeight;
+
+      // Active when Capabilities or Architecture sections are currently in view
+      const capInView = capRect.top <= viewH * 0.75 && capRect.bottom >= viewH * 0.15;
+      const archInView = archRect.top <= viewH * 0.75 && archRect.bottom >= viewH * 0.15;
+
+      setIsTargetCursorActive(capInView || archInView);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   const responseTimeVal = Math.round(100 + countProgress * 280);
   const uptimeVal = (90 + countProgress * 9.9).toFixed(1);
   const docsVal = Math.round(countProgress * 10);
@@ -126,14 +151,16 @@ const LandingPage = ({
       id="landing-screen"
       className="relative w-full min-h-screen bg-black text-white flex flex-col justify-between select-none font-sans-ui overflow-x-hidden"
     >
-      <TargetCursor
-        targetSelector=".cursor-target"
-        spinDuration={2.5}
-        hideDefaultCursor={false}
-        parallaxOn={true}
-        cursorColor="#ffffff"
-        cursorColorOnTarget="#c084fc"
-      />
+      {isTargetCursorActive && (
+        <TargetCursor
+          targetSelector=".cursor-target"
+          spinDuration={2.5}
+          hideDefaultCursor={true}
+          parallaxOn={true}
+          cursorColor="#ffffff"
+          cursorColorOnTarget="#c084fc"
+        />
+      )}
       {/* =========================================================================
           GLOBAL CONTINUOUS BACKGROUND (Subtle Dotted Canvas behind all sections)
           ========================================================================= */}
