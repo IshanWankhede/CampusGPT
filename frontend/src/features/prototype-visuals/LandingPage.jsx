@@ -117,16 +117,16 @@ const LandingPage = ({
           GLOBAL CONTINUOUS BACKGROUND (Subtle Dotted Canvas behind all sections)
           ========================================================================= */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        <div className="absolute inset-0 z-[1] opacity-95">
+        <div className="absolute inset-0 z-[1] opacity-45">
           <DotField
-            dotRadius={1.6}
+            dotRadius={1.3}
             dotSpacing={14}
             bulgeStrength={75}
             glowRadius={180}
             sparkle={true}
             waveAmplitude={1.2}
-            gradientFrom="rgba(255, 255, 255, 0.85)"
-            gradientTo="rgba(192, 132, 252, 0.60)"
+            gradientFrom="rgba(255, 255, 255, 0.45)"
+            gradientTo="rgba(192, 132, 252, 0.25)"
             glowColor="#28282a"
           />
         </div>
