@@ -49,7 +49,11 @@ export default function FloatingNav({ onNavigate }) {
     setActiveId(item.id);
 
     if (item.action === "home") {
-      document.getElementById("landing-screen")?.scrollIntoView({ behavior: "smooth" });
+      if (window.__lenis) {
+        window.__lenis.scrollTo(0, { duration: 1.2 });
+      } else {
+        document.getElementById("landing-screen")?.scrollIntoView({ behavior: "smooth" });
+      }
       return;
     }
 

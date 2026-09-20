@@ -46,7 +46,7 @@ const LandingPage = ({
     "div",
     {
       id: "landing-screen",
-      className: "relative w-full min-h-screen overflow-x-hidden overflow-y-auto bg-black text-white flex flex-col justify-between select-none",
+      className: "relative w-full min-h-screen overflow-x-hidden bg-black text-white flex flex-col justify-between select-none",
       children: [
         /* @__PURE__ */ jsxs("div", { className: "absolute inset-0 z-0 pointer-events-none overflow-hidden", children: [
           /* @__PURE__ */ jsx("div", { className: "absolute inset-0 z-[2] pointer-events-none opacity-85", children: /* @__PURE__ */ jsx(
@@ -136,7 +136,7 @@ const LandingPage = ({
           }
         ) }),
 
-        /* @__PURE__ */ jsxs("main", { className: "relative z-10 w-full max-w-4xl mx-auto px-4 text-center flex flex-col items-center justify-center my-auto py-6", children: [
+        /* @__PURE__ */ jsxs("main", { id: "home", className: "relative z-10 w-full max-w-4xl mx-auto px-4 text-center flex flex-col items-center justify-center my-auto py-6 scroll-mt-24", children: [
           /* @__PURE__ */ jsxs(
             motion.div,
             {
@@ -212,7 +212,7 @@ const LandingPage = ({
             }
           )
         ] }),
-        /* @__PURE__ */ jsx("footer", { className: "relative z-20 w-full max-w-5xl mx-auto px-6 pb-6 md:pb-8 pt-6 shrink-0", children: /* @__PURE__ */ jsxs(
+        /* @__PURE__ */ jsx("footer", { id: "features", className: "relative z-20 w-full max-w-5xl mx-auto px-6 pb-6 md:pb-8 pt-6 shrink-0 scroll-mt-24", children: /* @__PURE__ */ jsxs(
           motion.div,
           {
             initial: { opacity: 0, y: 20 },
