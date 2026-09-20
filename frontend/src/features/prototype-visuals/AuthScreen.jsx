@@ -66,6 +66,7 @@ function InlineOtp({ value, onChange, disabled, status, onComplete }) {
 }
 
 const AuthScreen = ({
+  initialMode,
   onSelectRole,
   onNavigate = (_s) => {
   },
@@ -73,8 +74,13 @@ const AuthScreen = ({
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, register, sendOtp, verifyOtp } = useAuth();
-  const [authMode, setAuthMode] = useState("login");
+  const { login, register, sendOtp, verifyOtp, forgotPassword } = useAuth();
+  const [authMode, setAuthMode] = useState(() => {
+    if (initialMode) return initialMode;
+    if (location.pathname === "/auth/forgot-password") return "forgot";
+    return "login";
+  });
+  const [forgotEmail, setForgotEmail] = useState("");
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginCollege, setLoginCollege] = useState("VIT");
@@ -91,6 +97,16 @@ const AuthScreen = ({
   const [showSignupConfirmPassword, setShowSignupConfirmPassword] = useState(false);
   const [requestError, setRequestError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const switchAuthMode = (mode) => {
+    setRequestError("");
+    setAuthMode(mode);
+    if (mode === "forgot") {
+      navigate("/auth/forgot-password", { replace: true });
+    } else {
+      navigate("/auth", { replace: true });
+    }
+  };
   const [otp, setOtp] = useState("");
   const [otpStatus, setOtpStatus] = useState("");
   const [otpError, setOtpError] = useState("");
@@ -214,6 +230,20 @@ const AuthScreen = ({
       setSubmitting(false);
     }
   };
+  const handleForgotSubmit = async (e) => {
+    e.preventDefault();
+    setRequestError("");
+    if (!forgotEmail.trim()) return;
+    setSubmitting(true);
+    try {
+      await forgotPassword(forgotEmail.trim());
+      navigate(`/auth/reset-password?email=${encodeURIComponent(forgotEmail.trim())}`);
+    } catch (error) {
+      setRequestError(error.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -285,7 +315,7 @@ const AuthScreen = ({
                 {
                   variants: itemVariants,
                   className: "text-2xl sm:text-3xl font-semibold text-white tracking-tight",
-                  children: authMode === "login" ? "Welcome Back" : "Create Your Account"
+                  children: authMode === "login" ? "Welcome Back" : authMode === "signup" ? "Create Your Account" : "Forgot Password"
                 }
               ),
               /* @__PURE__ */ jsx(
@@ -293,37 +323,34 @@ const AuthScreen = ({
                 {
                   variants: itemVariants,
                   className: "text-sm text-[var(--muted)] mt-1.5 leading-relaxed",
-                  children: authMode === "login" ? "Sign in to access your campus dashboard" : "Join CampusGPT with your official university credentials"
+                  children: authMode === "login" ? "Sign in to access your campus dashboard" : authMode === "signup" ? "Join CampusGPT with your official university credentials" : "Enter your campus email and we'll send you a reset code"
                 }
               ),
-              /* @__PURE__ */ jsx(motion.div, { variants: itemVariants, className: "mt-5 mb-6", children: /* @__PURE__ */ jsxs("div", { className: "inline-flex p-1 rounded-full bg-[#1a1a1c] border border-white/10 shadow-inner", children: [
-                /* @__PURE__ */ jsx(
-                  "button",
-                  {
-                    type: "button",
-                    id: "tab-sign-in",
-                    onClick: () => {
-                      setRequestError("");
-                      setAuthMode("login");
-                    },
-                    className: `px-5 py-2 rounded-full text-xs font-medium transition-all cursor-pointer ${authMode === "login" ? "bg-white text-black font-semibold shadow-sm" : "text-[var(--muted)] hover:text-white"}`,
-                    children: "Sign In"
-                  }
-                ),
-                /* @__PURE__ */ jsx(
-                  "button",
-                  {
-                    type: "button",
-                    id: "tab-sign-up",
-                    onClick: () => {
-                      setRequestError("");
-                      setAuthMode("signup");
-                    },
-                    className: `px-5 py-2 rounded-full text-xs font-medium transition-all cursor-pointer ${authMode === "signup" ? "bg-white text-black font-semibold shadow-sm" : "text-[var(--muted)] hover:text-white"}`,
-                    children: "Sign Up"
-                  }
-                )
-              ] }) }),
+              authMode !== "forgot" && (
+                /* @__PURE__ */ jsx(motion.div, { variants: itemVariants, className: "mt-5 mb-6", children: /* @__PURE__ */ jsxs("div", { className: "inline-flex p-1 rounded-full bg-[#1a1a1c] border border-white/10 shadow-inner", children: [
+                  /* @__PURE__ */ jsx(
+                    "button",
+                    {
+                      type: "button",
+                      id: "tab-sign-in",
+                      onClick: () => switchAuthMode("login"),
+                      className: `px-5 py-2 rounded-full text-xs font-medium transition-all cursor-pointer ${authMode === "login" ? "bg-white text-black font-semibold shadow-sm" : "text-[var(--muted)] hover:text-white"}`,
+                      children: "Sign In"
+                    }
+                  ),
+                  /* @__PURE__ */ jsx(
+                    "button",
+                    {
+                      type: "button",
+                      id: "tab-sign-up",
+                      onClick: () => switchAuthMode("signup"),
+                      className: `px-5 py-2 rounded-full text-xs font-medium transition-all cursor-pointer ${authMode === "signup" ? "bg-white text-black font-semibold shadow-sm" : "text-[var(--muted)] hover:text-white"}`,
+                      children: "Sign Up"
+                    }
+                  )
+                ] }) })
+              ),
+              authMode === "forgot" && <div className="mb-6" />,
               requestError && /* @__PURE__ */ jsx("p", { role: "alert", className: "text-xs text-red-400 mb-4", children: requestError }),
               /* @__PURE__ */ jsx(AnimatePresence, { mode: "wait", children: authMode === "login" ? (
                 /* ================= LOGIN FORM ================= */
@@ -395,7 +422,7 @@ const AuthScreen = ({
                           <label className="text-xs font-medium text-[var(--muted)]">Password</label>
                           <button
                             type="button"
-                            onClick={() => navigate("/auth/forgot-password")}
+                            onClick={() => switchAuthMode("forgot")}
                             className="text-xs text-[var(--muted)] hover:text-white transition-colors cursor-pointer"
                           >
                             Forgot password?
@@ -462,7 +489,7 @@ const AuthScreen = ({
                           Don't have an account?{" "}
                           <button
                             type="button"
-                            onClick={() => setAuthMode("signup")}
+                            onClick={() => switchAuthMode("signup")}
                             className="text-white hover:underline font-medium cursor-pointer ml-1"
                           >
                             Sign up
@@ -473,7 +500,7 @@ const AuthScreen = ({
                   },
                   "login-form"
                 )
-              ) : (
+              ) : authMode === "signup" ? (
                 /* ================= SIGNUP FORM ================= */
                 /* @__PURE__ */ jsxs(
                   motion.form,
@@ -699,7 +726,7 @@ const AuthScreen = ({
                           Already have an account?{" "}
                           <button
                             type="button"
-                            onClick={() => setAuthMode("login")}
+                            onClick={() => switchAuthMode("login")}
                             className="text-white hover:underline font-medium cursor-pointer ml-1"
                           >
                             Sign in
@@ -709,6 +736,74 @@ const AuthScreen = ({
                     ]
                   },
                   "signup-form"
+                )
+              ) : (
+                /* ================= FORGOT PASSWORD FORM ================= */
+                /* @__PURE__ */ jsxs(
+                  motion.form,
+                  {
+                    variants: containerVariants,
+                    initial: "hidden",
+                    animate: "visible",
+                    exit: { opacity: 0, y: -10, transition: { duration: 0.2 } },
+                    onSubmit: handleForgotSubmit,
+                    className: "space-y-4 w-full",
+                    children: [
+                      <motion.div variants={itemVariants}>
+                        <label className="block text-xs font-medium text-[var(--muted)] mb-1.5 pl-0.5">
+                          Campus Email
+                        </label>
+                        <StarBorder
+                          className="w-full"
+                          color="white"
+                          speed="5s"
+                          thickness={1}
+                          backgroundColor="#141416"
+                          borderColor="rgba(255, 255, 255, 0.1)"
+                        >
+                          <div className="relative">
+                            <input
+                              id="forgot-email-input"
+                              type="email"
+                              required
+                              value={forgotEmail}
+                              onChange={(e) => setForgotEmail(e.target.value)}
+                              placeholder="name@campus.edu"
+                              className="w-full bg-transparent text-white rounded-[13px] px-4 py-3.5 text-sm placeholder:text-[#8e8e8e] focus:outline-none transition-all pr-10"
+                            />
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none text-xs">
+                              <i className="fa-regular fa-envelope" />
+                            </div>
+                          </div>
+                        </StarBorder>
+                      </motion.div>,
+                      <motion.div variants={itemVariants} className="pt-2">
+                        <button
+                          type="submit"
+                          id="submit-forgot-btn"
+                          disabled={submitting}
+                          style={buttonGlowStyle}
+                          className="w-full bg-white hover:bg-neutral-100 text-black font-semibold text-sm py-3.5 px-4 rounded-full transition-all active:scale-[0.99] cursor-pointer flex items-center justify-center gap-2 disabled:opacity-60"
+                        >
+                          <span>{submitting ? "Sending Reset Code..." : "Send Reset Code"}</span>
+                          <i className="fa-solid fa-arrow-right text-xs" />
+                        </button>
+                      </motion.div>,
+                      <motion.div variants={itemVariants}>
+                        <p className="text-xs text-[var(--muted)] text-center mt-3">
+                          Remember your password?{" "}
+                          <button
+                            type="button"
+                            onClick={() => switchAuthMode("login")}
+                            className="text-white hover:underline font-medium cursor-pointer ml-1"
+                          >
+                            Back to sign in
+                          </button>
+                        </p>
+                      </motion.div>
+                    ]
+                  },
+                  "forgot-form"
                 )
               ) })
             ]

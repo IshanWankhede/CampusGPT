@@ -1,7 +1,14 @@
+import { motion } from "motion/react";
+
 export function AuthFlowShell({ title, subtitle, children }) {
   return (
     <main className="min-h-screen min-h-[100dvh] bg-black text-white flex items-center justify-center p-[clamp(24px,5vw,64px)] font-sans-ui">
-      <section className="w-full max-w-[440px]">
+      <motion.section
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        className="w-full max-w-[440px]"
+      >
         <div className="mb-6 flex items-center justify-between">
           <a href="/" className="flex items-center gap-2.5 text-sm font-semibold text-white">
             <span className="w-8 h-8 rounded-full bg-[#1c1c1e] border border-white/15 flex items-center justify-center">
@@ -14,7 +21,7 @@ export function AuthFlowShell({ title, subtitle, children }) {
         <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">{title}</h1>
         <p className="text-sm text-neutral-400 mt-1.5 leading-relaxed">{subtitle}</p>
         <div className="mt-6">{children}</div>
-      </section>
+      </motion.section>
     </main>
   );
 }
