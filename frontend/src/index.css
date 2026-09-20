@@ -22,6 +22,28 @@ body {
   overflow-x: hidden;
 }
 
+/* Lenis smooth scrolling core styles */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis:not(.lenis-autoToggle).lenis-stopped {
+  overflow: clip;
+}
+
+.lenis [data-lenis-prevent],
+.lenis [data-lenis-prevent-wheel],
+.lenis [data-lenis-prevent-touch],
+.lenis [data-lenis-prevent-vertical],
+.lenis [data-lenis-prevent-horizontal] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-smooth iframe {
+  pointer-events: none;
+}
+
 /* Hide native browser cursors (including hand/pointer on hover) when fine pointer is active */
 @media (any-hover: hover) and (any-pointer: fine) {
   *, *::before, *::after {
