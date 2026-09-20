@@ -6,6 +6,7 @@ import SpecularButton from "./SpecularButton";
 import FloatingNav from "./FloatingNav";
 import StarBorder from "./StarBorder";
 import ScrollVelocity from "./ScrollVelocity";
+import TargetCursor from "./TargetCursor";
 
 const PREVIEW_SAMPLES = [
   {
@@ -125,6 +126,14 @@ const LandingPage = ({
       id="landing-screen"
       className="relative w-full min-h-screen bg-black text-white flex flex-col justify-between select-none font-sans-ui overflow-x-hidden"
     >
+      <TargetCursor
+        targetSelector=".cursor-target"
+        spinDuration={2.5}
+        hideDefaultCursor={false}
+        parallaxOn={true}
+        cursorColor="#ffffff"
+        cursorColorOnTarget="#c084fc"
+      />
       {/* =========================================================================
           GLOBAL CONTINUOUS BACKGROUND (Subtle Dotted Canvas behind all sections)
           ========================================================================= */}
@@ -515,7 +524,7 @@ const LandingPage = ({
             viewport={{ once: true }}
             whileHover={{ y: -4 }}
             transition={{ duration: 0.4 }}
-            className="md:col-span-2 bg-[#121215] border border-white/15 rounded-3xl p-7 flex flex-col justify-between hover:border-white/35 transition-all group shadow-lg"
+            className="md:col-span-2 bg-[#121215] border border-white/15 rounded-3xl p-7 flex flex-col justify-between hover:border-white/35 transition-all group shadow-lg cursor-target"
           >
             <div>
               <div className="w-10 h-10 rounded-2xl bg-[#1c1c20] border border-white/15 flex items-center justify-center text-white mb-5 group-hover:bg-white group-hover:text-black transition-colors">
@@ -543,7 +552,7 @@ const LandingPage = ({
             viewport={{ once: true }}
             whileHover={{ y: -4 }}
             transition={{ duration: 0.4, delay: 0.1 }}
-            className="md:col-span-1 bg-[#121215] border border-white/15 rounded-3xl p-7 flex flex-col justify-between hover:border-white/35 transition-all group shadow-lg"
+            className="md:col-span-1 bg-[#121215] border border-white/15 rounded-3xl p-7 flex flex-col justify-between hover:border-white/35 transition-all group shadow-lg cursor-target"
           >
             <div>
               <div className="w-10 h-10 rounded-2xl bg-[#1c1c20] border border-white/15 flex items-center justify-center text-white mb-5 group-hover:bg-white group-hover:text-black transition-colors">
@@ -568,7 +577,7 @@ const LandingPage = ({
             viewport={{ once: true }}
             whileHover={{ y: -4 }}
             transition={{ duration: 0.4, delay: 0.15 }}
-            className="md:col-span-1 bg-[#121215] border border-white/15 rounded-3xl p-7 flex flex-col justify-between hover:border-white/35 transition-all group shadow-lg"
+            className="md:col-span-1 bg-[#121215] border border-white/15 rounded-3xl p-7 flex flex-col justify-between hover:border-white/35 transition-all group shadow-lg cursor-target"
           >
             <div>
               <div className="w-10 h-10 rounded-2xl bg-[#1c1c20] border border-white/15 flex items-center justify-center text-white mb-5 group-hover:bg-white group-hover:text-black transition-colors">
@@ -593,7 +602,7 @@ const LandingPage = ({
             viewport={{ once: true }}
             whileHover={{ y: -4 }}
             transition={{ duration: 0.4, delay: 0.2 }}
-            className="md:col-span-2 bg-[#121215] border border-white/15 rounded-3xl p-7 flex flex-col justify-between hover:border-white/35 transition-all group shadow-lg"
+            className="md:col-span-2 bg-[#121215] border border-white/15 rounded-3xl p-7 flex flex-col justify-between hover:border-white/35 transition-all group shadow-lg cursor-target"
           >
             <div>
               <div className="w-10 h-10 rounded-2xl bg-[#1c1c20] border border-white/15 flex items-center justify-center text-white mb-5 group-hover:bg-white group-hover:text-black transition-colors">
@@ -674,7 +683,7 @@ const LandingPage = ({
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="bg-[#121215] border border-white/15 rounded-2xl p-6 flex flex-col justify-between hover:border-white/30 transition-all group"
+              className="bg-[#121215] border border-white/15 rounded-2xl p-6 flex flex-col justify-between hover:border-white/30 transition-all group cursor-target"
             >
               <div>
                 <div className="flex items-center justify-between mb-4">
