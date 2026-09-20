@@ -5,6 +5,7 @@ import Strands from "./Strands";
 import SpecularButton from "./SpecularButton";
 import FloatingNav from "./FloatingNav";
 import StarBorder from "./StarBorder";
+import ScrollVelocity from "./ScrollVelocity";
 
 const PREVIEW_SAMPLES = [
   {
@@ -346,40 +347,18 @@ const LandingPage = ({
       </section>
 
       {/* =========================================================================
-          SECTION 2 — VELOCITY MARQUEE (Dual opposite directional rows)
+          SECTION 2 — VELOCITY MARQUEE (React Bits ScrollVelocity)
           ========================================================================= */}
-      <section className="relative z-10 w-full py-8 border-y border-white/10 bg-[#060608]/90 backdrop-blur-md overflow-hidden">
-        {/* ROW 1: MOVES RIGHT */}
-        <div className="overflow-hidden whitespace-nowrap flex select-none mb-3">
-          <motion.div
-            animate={{ x: ["-50%", "0%"] }}
-            transition={{ repeat: Infinity, ease: "linear", duration: 32 }}
-            className="flex gap-8 items-center shrink-0 font-mono text-xs sm:text-sm tracking-widest uppercase font-semibold text-neutral-400"
-          >
-            {MARQUEE_ROW_1.concat(MARQUEE_ROW_1).concat(MARQUEE_ROW_1).map((item, idx) => (
-              <span key={idx} className="flex items-center gap-8 hover:text-white transition-colors">
-                <span>{item}</span>
-                <span className="text-white/30 text-[10px]">✦</span>
-              </span>
-            ))}
-          </motion.div>
-        </div>
-
-        {/* ROW 2: MOVES LEFT */}
-        <div className="overflow-hidden whitespace-nowrap flex select-none">
-          <motion.div
-            animate={{ x: ["0%", "-50%"] }}
-            transition={{ repeat: Infinity, ease: "linear", duration: 28 }}
-            className="flex gap-8 items-center shrink-0 font-mono text-xs sm:text-sm tracking-widest uppercase font-semibold text-neutral-400"
-          >
-            {MARQUEE_ROW_2.concat(MARQUEE_ROW_2).concat(MARQUEE_ROW_2).map((item, idx) => (
-              <span key={idx} className="flex items-center gap-8 hover:text-white transition-colors">
-                <span>{item}</span>
-                <span className="text-white/30 text-[10px]">✦</span>
-              </span>
-            ))}
-          </motion.div>
-        </div>
+      <section className="relative z-10 w-full py-12 md:py-16 border-y border-white/10 bg-[#060608]/90 backdrop-blur-md overflow-hidden flex flex-col justify-center">
+        <ScrollVelocity
+          texts={[
+            "AI CAMPUS ASSISTANT ✦ RAG POWERED ✦ SMART CAMPUS ✦ INSTANT ANSWERS ✦ VECTOR INDEXING ✦ AUTOMATED TIMETABLES ✦",
+            "ATTENDANCE ANALYTICS ✦ TIMETABLES ✦ ASSIGNMENTS ✦ PDF Q&A ✦ COURSE MATERIAL ✦ SYLLABUS SEARCH ✦ DEPARTMENTAL PORTAL ✦"
+          ]}
+          velocity={50}
+          className="font-mono text-xl sm:text-2xl md:text-3xl lg:text-4xl font-extrabold tracking-widest uppercase text-neutral-300 hover:text-white transition-colors py-3"
+          scrollerClassName="flex whitespace-nowrap text-center items-center gap-6"
+        />
       </section>
 
       {/* =========================================================================
