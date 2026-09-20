@@ -349,7 +349,7 @@ const LandingPage = ({
       {/* =========================================================================
           SECTION 2 — VELOCITY MARQUEE (React Bits ScrollVelocity)
           ========================================================================= */}
-      <section className="relative z-10 w-full py-12 md:py-16 border-y border-white/10 bg-[#060608]/90 backdrop-blur-md overflow-hidden flex flex-col justify-center">
+      <section className="relative z-10 w-full py-12 md:py-16 overflow-hidden flex flex-col justify-center">
         <ScrollVelocity
           texts={[
             "AI CAMPUS ASSISTANT ✦ RAG POWERED ✦ SMART CAMPUS ✦ INSTANT ANSWERS ✦ VECTOR INDEXING ✦ AUTOMATED TIMETABLES ✦",
