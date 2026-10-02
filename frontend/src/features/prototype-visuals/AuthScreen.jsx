@@ -576,7 +576,7 @@ const AuthScreen = ({
                               required
                               value={signupEmail}
                               onChange={handleSignupEmailChange}
-                              placeholder="xyz@gmail.com"
+                              placeholder={`name@${signupCollege === "COEP" ? "coep.ac.in" : signupCollege === "PICT" ? "pict.edu" : "vit.edu"}`}
                               className="w-full bg-transparent text-white rounded-[13px] px-4 py-3.5 text-sm placeholder:text-[#8e8e8e] focus:outline-none transition-all pr-10"
                             />
                             <div className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none text-xs">
@@ -595,6 +595,9 @@ const AuthScreen = ({
                               {otpSending ? "Sending..." : "Verify Email"}
                             </button>
                           </motion.div>
+                        ) : null}
+                        {authMode === "signup" && validSignupEmail && !otpSent && otpError ? (
+                          <p role="alert" className="mt-2 text-xs text-red-400">{otpError}</p>
                         ) : null}
                         {authMode === "signup" && validSignupEmail && otpSent ? (
                           <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="mt-2 space-y-1.5">
