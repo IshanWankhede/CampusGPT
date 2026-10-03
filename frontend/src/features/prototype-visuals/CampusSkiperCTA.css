@@ -1,0 +1,160 @@
+.campus-skiper-cta {
+  position: relative;
+  z-index: 10;
+  display: grid;
+  min-height: min(780px, 100svh);
+  place-items: center;
+  overflow: hidden;
+  padding: 72px 24px;
+  background: transparent;
+  color: #fff;
+  isolation: isolate;
+}
+
+.skiper39-crowd-canvas {
+  position: absolute;
+  z-index: -1;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 72%;
+  opacity: 0.34;
+  pointer-events: none;
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 28%, #000 75%, transparent 100%);
+}
+
+.campus-skiper-card {
+  position: relative;
+  display: flex;
+  width: min(100%, 965px);
+  min-height: 495px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 30px;
+  padding: 58px 32px;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(52, 52, 56, 0.2), transparent 62%),
+    linear-gradient(155deg, rgba(20, 20, 23, 0.96), rgba(9, 9, 11, 0.97));
+  box-shadow: 0 24px 90px rgba(0, 0, 0, 0.55), inset 0 1px rgba(255, 255, 255, 0.04);
+  text-align: center;
+}
+
+.campus-skiper-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 999px;
+  padding: 7px 14px;
+  background: rgba(255, 255, 255, 0.055);
+  color: rgba(255, 255, 255, 0.78);
+  font: 600 10px "SFMono-Regular", Consolas, monospace;
+  letter-spacing: 0.04em;
+}
+
+.campus-skiper-card h2 {
+  margin: 25px 0 0;
+  color: #fff;
+  font-family: "BubbledotICG-FinePos", "Courier New", monospace;
+  font-size: clamp(2.5rem, 6.2vw, 5rem);
+  font-weight: 700;
+  line-height: 0.99;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+.campus-skiper-card h2 span {
+  color: #fff;
+  text-shadow: 0 0 22px rgba(255, 255, 255, 0.18);
+}
+
+.campus-skiper-card > p {
+  max-width: 460px;
+  margin: 24px 0 0;
+  color: rgba(255, 255, 255, 0.57);
+  font-size: clamp(0.9rem, 1.4vw, 1.05rem);
+  line-height: 1.65;
+}
+
+.campus-skiper-button {
+  display: inline-flex;
+  min-width: 230px;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  border-radius: 999px;
+  padding: 17px 27px;
+  background: #fff;
+  color: #080809;
+  font-size: 16px;
+  font-weight: 650;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.campus-skiper-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(255, 255, 255, 0.18);
+}
+
+.campus-skiper-button:focus-visible {
+  outline: 2px solid #8eeaff;
+  outline-offset: 4px;
+}
+
+.campus-skiper-credit {
+  position: absolute;
+  right: 22px;
+  bottom: 18px;
+  color: rgba(255, 255, 255, 0.4);
+  font: 10px "SFMono-Regular", Consolas, monospace;
+  text-decoration: none;
+  transition: color 160ms ease;
+}
+
+.campus-skiper-credit:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+@media (max-width: 640px) {
+  .campus-skiper-cta {
+    min-height: 690px;
+    padding: 52px 16px;
+  }
+
+  .campus-skiper-card {
+    min-height: 440px;
+    border-radius: 24px;
+    padding: 44px 20px 58px;
+  }
+
+  .campus-skiper-card h2 {
+    font-size: clamp(2.15rem, 10vw, 3.4rem);
+  }
+
+  .campus-skiper-card > p {
+    max-width: 330px;
+  }
+
+  .skiper39-crowd-canvas {
+    height: 55%;
+    opacity: 0.25;
+  }
+
+  .campus-skiper-credit {
+    right: 50%;
+    bottom: 15px;
+    white-space: nowrap;
+    transform: translateX(50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .campus-skiper-button {
+    transition: none;
+  }
+}

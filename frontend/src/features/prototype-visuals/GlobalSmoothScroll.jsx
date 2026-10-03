@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import Lenis from "lenis";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 const SmoothScrollContext = createContext(null);
 
@@ -20,6 +22,8 @@ export default function GlobalSmoothScroll({ children }) {
       return;
     }
 
+    gsap.registerPlugin(ScrollTrigger);
+
     // Initialize single global Lenis instance
     const lenis = new Lenis({
       duration: 1.2,
@@ -36,12 +40,10 @@ export default function GlobalSmoothScroll({ children }) {
     lenisRef.current = lenis;
     window.__lenis = lenis;
 
-    let rafId;
-    function update(time) {
-      lenis.raf(time);
-      rafId = requestAnimationFrame(update);
-    }
-    rafId = requestAnimationFrame(update);
+    const updateLenis = (time) => lenis.raf(time * 1000);
+    lenis.on("scroll", ScrollTrigger.update);
+    gsap.ticker.add(updateLenis);
+    gsap.ticker.lagSmoothing(0);
 
     // Global anchor click handler for smooth scrolling to elements
     const handleAnchorClick = (e) => {
@@ -62,7 +64,8 @@ export default function GlobalSmoothScroll({ children }) {
 
     return () => {
       document.removeEventListener("click", handleAnchorClick);
-      cancelAnimationFrame(rafId);
+      lenis.off("scroll", ScrollTrigger.update);
+      gsap.ticker.remove(updateLenis);
       lenis.destroy();
       lenisRef.current = null;
       delete window.__lenis;
