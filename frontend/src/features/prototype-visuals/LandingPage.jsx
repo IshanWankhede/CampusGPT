@@ -7,6 +7,8 @@ import FloatingNav from "./FloatingNav";
 import StarBorder from "./StarBorder";
 import ScrollVelocity from "./ScrollVelocity";
 import TargetCursor from "./TargetCursor";
+import CampusSkiperCTA from "./CampusSkiperCTA";
+import CampusFeatureSpread from "./CampusFeatureSpread";
 
 const PREVIEW_SAMPLES = [
   {
@@ -149,7 +151,7 @@ const LandingPage = ({
   return (
     <div
       id="landing-screen"
-      className="relative w-full min-h-screen bg-black text-white flex flex-col justify-between select-none font-sans-ui overflow-x-hidden"
+      className="relative w-full min-h-screen bg-black text-white flex flex-col justify-between select-none font-sans-ui overflow-x-clip"
     >
       {isTargetCursorActive && (
         <TargetCursor
@@ -521,138 +523,9 @@ const LandingPage = ({
       </section>
 
       {/* =========================================================================
-          SECTION 4 — BENTO FEATURES / CAPABILITIES
+          SECTION 4 — PINNED CAMPUS CAPABILITIES
           ========================================================================= */}
-      <section id="capabilities" className="relative z-10 w-full max-w-6xl mx-auto px-4 py-20 scroll-mt-24">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-60px" }}
-          transition={{ duration: 0.7 }}
-          className="text-center mb-14"
-        >
-          <div className="inline-block px-3 py-1 rounded-full bg-[#1c1c1e] border border-white/10 text-xs font-semibold text-neutral-300 mb-3 uppercase tracking-wider">
-            Capabilities
-          </div>
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-semibold text-white tracking-tight">
-            Engineered For University Ecosystems
-          </h2>
-          <p className="text-neutral-400 text-sm sm:text-base max-w-xl mx-auto mt-2">
-            High-precision RAG vector search meets real-time academic schedule integration.
-          </p>
-        </motion.div>
-
-        {/* BENTO GRID */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {/* FEATURE 1: LARGE AI ASSISTANT (Span 2 cols) */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            whileHover={{ y: -4 }}
-            transition={{ duration: 0.4 }}
-            className="md:col-span-2 bg-[#121215] border border-white/15 rounded-3xl p-7 flex flex-col justify-between hover:border-white/35 transition-all group shadow-lg cursor-target"
-          >
-            <div>
-              <div className="w-10 h-10 rounded-2xl bg-[#1c1c20] border border-white/15 flex items-center justify-center text-white mb-5 group-hover:bg-white group-hover:text-black transition-colors">
-                <i className="fa-solid fa-brain text-base" />
-              </div>
-              <span className="text-xs font-mono text-neutral-400 uppercase tracking-widest">Core Intelligence</span>
-              <h3 className="text-2xl font-semibold text-white mt-1 mb-2">AI Campus Assistant</h3>
-              <p className="text-neutral-400 text-sm leading-relaxed max-w-md">
-                Ask natural questions regarding your specific university curriculum, class locations, and faculty hours with accurate vector RAG citations.
-              </p>
-            </div>
-            <div className="mt-8 p-4 rounded-2xl bg-[#17171b] border border-white/10 flex items-center justify-between text-xs font-mono text-neutral-300">
-              <span className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                RAG Response Latency
-              </span>
-              <span className="text-white font-bold">&lt; 280ms</span>
-            </div>
-          </motion.div>
-
-          {/* FEATURE 2: TIMETABLES (Span 1 col) */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            whileHover={{ y: -4 }}
-            transition={{ duration: 0.4, delay: 0.1 }}
-            className="md:col-span-1 bg-[#121215] border border-white/15 rounded-3xl p-7 flex flex-col justify-between hover:border-white/35 transition-all group shadow-lg cursor-target"
-          >
-            <div>
-              <div className="w-10 h-10 rounded-2xl bg-[#1c1c20] border border-white/15 flex items-center justify-center text-white mb-5 group-hover:bg-white group-hover:text-black transition-colors">
-                <i className="fa-solid fa-calendar-days text-base" />
-              </div>
-              <span className="text-xs font-mono text-neutral-400 uppercase tracking-widest">Schedules</span>
-              <h3 className="text-xl font-semibold text-white mt-1 mb-2">Automated Timetables</h3>
-              <p className="text-neutral-400 text-xs leading-relaxed">
-                Instant class schedules, batch labs, and exam timetable lookups without navigating confusing portals.
-              </p>
-            </div>
-            <div className="mt-6 p-3.5 rounded-2xl bg-[#17171b] border border-white/10 text-[11px] font-mono text-neutral-300 flex items-center justify-between">
-              <span>Next Class: DBMS</span>
-              <span className="text-amber-400 font-bold">10:00 AM · Rm 402</span>
-            </div>
-          </motion.div>
-
-          {/* FEATURE 3: DOCUMENT Q&A (Span 1 col) */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            whileHover={{ y: -4 }}
-            transition={{ duration: 0.4, delay: 0.15 }}
-            className="md:col-span-1 bg-[#121215] border border-white/15 rounded-3xl p-7 flex flex-col justify-between hover:border-white/35 transition-all group shadow-lg cursor-target"
-          >
-            <div>
-              <div className="w-10 h-10 rounded-2xl bg-[#1c1c20] border border-white/15 flex items-center justify-center text-white mb-5 group-hover:bg-white group-hover:text-black transition-colors">
-                <i className="fa-solid fa-file-invoice text-base" />
-              </div>
-              <span className="text-xs font-mono text-neutral-400 uppercase tracking-widest">Document Q&A</span>
-              <h3 className="text-xl font-semibold text-white mt-1 mb-2">Syllabus & PDF Indexing</h3>
-              <p className="text-neutral-400 text-xs leading-relaxed">
-                Upload course syllabi, lecture notes, or notices. CampusGPT queries deep inside documents for instant summaries.
-              </p>
-            </div>
-            <div className="mt-6 flex gap-2">
-              <span className="px-2.5 py-1 rounded-full bg-[#1c1c20] text-[10px] font-mono text-neutral-300 border border-white/10">Syllabus.pdf</span>
-              <span className="px-2.5 py-1 rounded-full bg-[#1c1c20] text-[10px] font-mono text-neutral-300 border border-white/10">Notes.pdf</span>
-            </div>
-          </motion.div>
-
-          {/* FEATURE 4: ATTENDANCE ANALYTICS (Span 2 cols) */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            whileHover={{ y: -4 }}
-            transition={{ duration: 0.4, delay: 0.2 }}
-            className="md:col-span-2 bg-[#121215] border border-white/15 rounded-3xl p-7 flex flex-col justify-between hover:border-white/35 transition-all group shadow-lg cursor-target"
-          >
-            <div>
-              <div className="w-10 h-10 rounded-2xl bg-[#1c1c20] border border-white/15 flex items-center justify-center text-white mb-5 group-hover:bg-white group-hover:text-black transition-colors">
-                <i className="fa-solid fa-user-check text-base" />
-              </div>
-              <span className="text-xs font-mono text-neutral-400 uppercase tracking-widest">Attendance</span>
-              <h3 className="text-2xl font-semibold text-white mt-1 mb-2">Smart Attendance Tracking</h3>
-              <p className="text-neutral-400 text-sm leading-relaxed max-w-md">
-                Monitor current session attendance, track safe absence margins, and receive automatic alerts before falling below mandatory criteria.
-              </p>
-            </div>
-            <div className="mt-8 space-y-2">
-              <div className="flex justify-between text-xs font-mono">
-                <span className="text-neutral-400">Current Average Attendance</span>
-                <span className="text-emerald-400 font-bold">88.5% (Safe)</span>
-              </div>
-              <div className="w-full h-2.5 rounded-full bg-[#1c1c22] overflow-hidden p-0.5 border border-white/10">
-                <div className="h-full rounded-full bg-emerald-400 w-[88.5%]" />
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      </section>
+      <CampusFeatureSpread />
 
       {/* =========================================================================
           SECTION 5 — HOW CAMPUSGPT WORKS (4-Step Workflow)
@@ -773,47 +646,7 @@ const LandingPage = ({
       {/* =========================================================================
           SECTION 7 — FINAL CTA (Clean Monochrome, NO hero strands here!)
           ========================================================================= */}
-      <section className="relative z-10 w-full max-w-4xl mx-auto px-4 py-20 text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.7 }}
-          className="bg-gradient-to-b from-[#141418] to-[#0c0c0e] border border-white/20 rounded-3xl p-10 sm:p-16 shadow-[0_0_60px_rgba(255,255,255,0.06)] flex flex-col items-center justify-center relative overflow-hidden"
-        >
-          <div className="inline-block px-3.5 py-1 rounded-full bg-[#202025] border border-white/15 text-xs font-mono text-white mb-4 uppercase tracking-wider">
-            Ready to upgrade your campus?
-          </div>
-          <h2 className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-semibold text-white tracking-wider uppercase mb-4">
-            Your Campus. One AI Assistant.
-          </h2>
-          <p className="text-neutral-400 text-sm sm:text-base max-w-md mx-auto mb-8 leading-relaxed font-normal">
-            Everything students and faculty need. One intelligent place to ask.
-          </p>
-
-          <SpecularButton
-            onClick={() => handleNav("auth")}
-            size="lg"
-            radius={28}
-            tint="#ffffff"
-            tintOpacity={1}
-            textColor="#000000"
-            lineColor="#ffffff"
-            baseColor="#e0e0e0"
-            intensity={1.2}
-            shineSize={12}
-            shineFade={35}
-            thickness={1.5}
-            speed={0.4}
-            followMouse={true}
-            proximity={260}
-            className="font-semibold text-base sm:text-lg shadow-[0_0_35px_rgba(255,255,255,0.45)] hover:shadow-[0_0_55px_rgba(255,255,255,0.7)] transition-all cursor-pointer"
-          >
-            <span>Get Started</span>
-            <i className="fa-solid fa-arrow-right text-sm ml-1" />
-          </SpecularButton>
-        </motion.div>
-      </section>
+      <CampusSkiperCTA onGetStarted={onGetStarted || onSignIn || (() => handleNav("auth"))} />
 
       {/* =========================================================================
           SECTION 8 — FOOTER (Minimal Premium Footer)
