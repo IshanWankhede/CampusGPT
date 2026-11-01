@@ -1,407 +1,319 @@
-# 🏗️ CampusGPT
+<div align="center">
 
-A full-stack College/Campus Management System with an integrated AI assistant. CampusGPT combines a traditional ERP (attendance, timetable, assignments, notices, documents, analytics) with a **RAG-powered chatbot** that can answer questions from uploaded course material, query student data, or answer general questions — all routed intelligently based on intent.
+# 🎓 CampusGPT
 
-> 📄 See [`ARCHITECTURE.md`](./Architecture/ARCHITECTURE.md) for the full system design, [`UML_DIAGRAMS.md`](./Architecture/UML_DIAGRAMS.md) for class/UML and flow diagrams, and [`DB_SCHEMA.md`](./Architecture/DB_SCHEMA.md) for the database schema.
+### Your Campus. One Intelligent Platform.
+
+**An AI-powered Campus ERP with a grounded AI assistant — connecting academic management, campus information, and student support in one unified experience.**
+
+<p>
+  <img src="https://img.shields.io/badge/Campus%20ERP-Intelligent%20Campus-7657E8?style=for-the-badge" alt="Campus ERP"/>
+  <img src="https://img.shields.io/badge/Frontend-React%20%2B%20JavaScript-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React"/>
+  <img src="https://img.shields.io/badge/Backend-FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI"/>
+  <img src="https://img.shields.io/badge/Database-PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL"/>
+</p>
+
+<p>
+  <a href="#-about-campusgpt">About</a> •
+  <a href="#-the-campus-experience">Campus Experience</a> •
+  <a href="#-features">Features</a> •
+  <a href="#-ai-powered-campus-assistant">AI Assistant</a> •
+  <a href="#-technology">Technology</a>
+</p>
+
+</div>
 
 ---
+
+## 🌌 About CampusGPT
+
+CampusGPT is an intelligent, unified campus management platform designed to simplify the academic experience for students, faculty, and administrators.
+
+It brings essential campus activities — including attendance, timetables, assignments, notices, academic documents, and student information — together in one connected environment.
+
+At its core, CampusGPT combines the capabilities of a traditional **Campus ERP** with an **AI-powered assistant**. Instead of navigating multiple sections or searching through scattered documents, users can access relevant campus information and interact with it through a conversational interface.
+
+The platform is designed around three ideas:
+
+- **Connect** — bring academic and administrative activities into one platform.
+- **Simplify** — make campus information and everyday tasks easier to access.
+- **Assist intelligently** — use AI to help users find relevant, institution-specific information.
+
+## 🎯 The Campus Experience
+
+CampusGPT provides a role-oriented experience for the different people who make up an academic institution.
+
+<table>
+<tr>
+<td width="33%" align="center">
+
+### 🎓 Students
+
+A personal academic space to follow schedules, attendance, assignments, notices, documents, and opportunities.
+
+</td>
+<td width="33%" align="center">
+
+### 👩‍🏫 Faculty
+
+A workspace for academic activities, classroom information, attendance, assignments, and communication with students.
+
+</td>
+<td width="33%" align="center">
+
+### 🛡️ Administrators
+
+A centralised view of campus operations, users, academic information, and institutional activities.
+
+</td>
+</tr>
+</table>
 
 ## ✨ Features
 
-- 🔐 JWT authentication with role-based access control (Student / Faculty / Admin)
-- 🏫 Multi-college support (COEP / PICT / VIT) with per-college email domain validation
-- 📧 OTP-based email verification and password reset (via Resend)
-- 🔑 "Continue with Google" sign-in, restricted to recognized college email domains
-- 📊 Attendance tracking with per-subject and per-student analytics
-- 📅 Timetable management
-- 📝 Assignments with submission tracking
-- 📢 Notices/announcements
-- 📄 Document upload and management
-- 🤖 **CampusGPT AI Assistant** — RAG over course documents, database-aware Q&A, and general LLM chat, all through one intent router
-- 📈 Role-specific analytics dashboards
-- 🔔 Notifications
+### 🔐 1. Secure Authentication & Role-Based Access
 
----
+- User registration and sign-in.
+- Email OTP verification.
+- Google OAuth authentication.
+- JWT-based authentication.
+- Role-aware access for students, faculty, and administrators.
+- Protected access to personal and institutional information.
 
-## 🧱 Tech Stack
+### 🎓 2. Student Dashboard
 
-| Layer | Technology |
-|---|---|
-| Frontend | React 18, Vite, Tailwind CSS |
-| Backend | FastAPI (Python 3.11+) |
-| ORM / Migrations | SQLAlchemy 2.0, Alembic |
-| Database | PostgreSQL 15/16 + `pgvector` |
-| Auth | JWT (access + refresh), bcrypt, Google OAuth 2.0 (Authlib) |
-| Email | Resend (OTP verification & password reset) |
-| Document parsing | PyMuPDF |
-| Embeddings | Sentence Transformers |
-| LLM | Claude API (or any LLM API) |
-| Realtime | WebSocket / Server-Sent Events |
-| Infra | Docker, Docker Compose, Nginx, GitHub Actions |
+A central academic dashboard that brings a student's important information together.
 
----
+- Personal academic overview.
+- Attendance summaries.
+- Today's and upcoming timetable.
+- Assignment deadlines and submission status.
+- Latest campus notices.
+- Academic documents and learning resources.
+- Relevant academic updates and opportunities.
 
-## 📁 Project Structure
+### 👩‍🏫 3. Faculty Dashboard
 
-```
-campusgpt/
-├── frontend/
-│   ├── Dockerfile          # production build (Nginx static serve)
-│   ├── Dockerfile.dev      # local development (Vite dev server + HMR)
-│   └── src/
-│       ├── components/{ui, common, navbar, sidebar, charts}/
-│       ├── pages/{auth, student, faculty, admin}/
-│       ├── features/{auth, attendance, timetable, assignments,
-│       │             notices, documents, chatbot, analytics}/
-│       ├── hooks/
-│       ├── services/{api.js, auth.js, chatbot.js}
-│       ├── context/
-│       ├── routes/
-│       ├── utils/
-│       └── constants/
-│
-├── backend/
-│   ├── Dockerfile
-│   └── app/
-│       ├── core/{config.py, security.py, dependencies.py, logging.py, email.py}
-│       ├── database/{session.py, base.py, models/}
-│       ├── auth/{router.py, schemas.py, service.py, repository.py, oauth.py}
-│       ├── users/
-│       ├── attendance/
-│       ├── timetable/
-│       ├── assignments/
-│       ├── notices/
-│       ├── documents/
-│       ├── rag/
-│       ├── chat/
-│       ├── analytics/
-│       ├── notifications/
-│       └── create_admin.py   # one-time CLI bootstrap for the first Admin account
-│
-├── docker-compose.yml
-├── .env.example
-└── .gitignore
-```
+A dedicated workspace to support teaching and academic responsibilities.
 
-Each backend feature module follows a consistent four-layer pattern: `router.py → schemas.py → service.py → repository.py`. See [`ARCHITECTURE.md`](./Architecture/ARCHITECTURE.md) for details.
+- Class and timetable overview.
+- Attendance management.
+- Assignment creation and submission tracking.
+- Student-related academic information.
+- Notices and classroom communication.
+- Access to relevant academic documents.
 
----
+### 🛡️ 4. Admin Dashboard
 
-## 📐 Diagrams
+A unified administrative workspace for managing campus information and activities.
 
-All UML class diagrams and flow/sequence diagrams (auth, OTP verification, Google OAuth, attendance, assignments, RAG ingestion, RAG query, chatbot routing, notifications, and state diagrams) live in [`UML_DIAGRAMS.md`](./Architecture/UML_DIAGRAMS.md). A couple of the most-referenced ones:
+- Student and faculty information management.
+- Academic and course information.
+- Timetable and attendance oversight.
+- Notices and announcements.
+- Document and institutional information management.
+- Overview of important campus activities.
 
-**System data flow**
-```mermaid
-flowchart LR
-    A[React Frontend] -->|REST / WebSocket| B[FastAPI Backend]
-    B --> C[(PostgreSQL + pgvector)]
-    B --> D[LLM API]
-```
+### 📅 5. Timetable Management
 
-**Chatbot intent routing**
+- View daily and weekly class schedules.
+- Organise timetable information by class, subject, and faculty.
+- Access upcoming academic sessions.
+- Keep timetable information available from the relevant dashboards.
+
+### 📊 6. Attendance Management
+
+- Record and manage attendance.
+- View attendance by subject and academic period.
+- Track attendance summaries and percentages.
+- Help students understand their attendance status.
+- Support faculty and administrative attendance workflows.
+
+### 📝 7. Assignment Management
+
+- Publish assignments with descriptions and deadlines.
+- Share assignment-related resources.
+- Submit and manage student submissions.
+- Track submission status and deadlines.
+- Keep assignment information organised by course or subject.
+
+### 📢 8. Notices & Notifications
+
+- Publish campus-wide and targeted notices.
+- Share academic announcements and important updates.
+- Keep students and faculty informed.
+- Organise notices by category and relevance.
+
+### 📁 9. Document Management
+
+- Upload and organise academic documents.
+- Support common document formats such as PDF and DOCX.
+- Access course materials, notes, notices, and institutional documents.
+- Make relevant documents available to authorised users.
+- Provide document content as a knowledge source for the AI assistant.
+
+### 🤖 10. CampusGPT AI Assistant
+
+A conversational assistant designed around campus-specific questions and tasks.
+
+- Ask questions in natural language.
+- Find relevant academic and institutional information.
+- Get assistance with timetables, attendance, assignments, notices, and documents.
+- Route questions to the appropriate information source.
+- Provide responses grounded in authorised campus information.
+- Support context-aware assistance for different user roles.
+
+### 🔎 11. Intelligent Document Search (RAG)
+
+Retrieval-Augmented Generation (RAG) helps the assistant answer questions using relevant institutional documents.
+
+- Document ingestion and processing.
+- Text extraction and chunking.
+- Embedding generation.
+- Semantic similarity search.
+- Context retrieval from relevant documents.
+- Source-grounded answer generation.
+
+### 🧭 12. Intent Detection & Intelligent Routing
+
+CampusGPT is designed to understand the purpose behind a user's question and select an appropriate response path.
+
+- Identify the intent of a user query.
+- Distinguish campus-data questions from document questions and general queries.
+- Route requests to relevant backend tools or retrieval systems.
+- Apply user permissions before accessing protected information.
+- Return responses based on the selected source.
+
+### 📈 13. Academic Analytics
+
+- Attendance and academic summaries.
+- Visual insights into academic activity.
+- Progress trends and useful indicators.
+- Data-driven views for students, faculty, and administrators.
+
+### 🎯 14. Placement & Career Opportunities
+
+- Placement-related information.
+- Company and opportunity details.
+- Internship discovery.
+- Hackathon and competition updates.
+- Centralised access to career-related opportunities.
+
+### 🧠 15. Course Recommendation System
+
+- Explore relevant courses and learning resources.
+- Discover learning paths based on academic interests.
+- Support informed learning and skill-development choices.
+
+### 🖼️ 16. Visual Learning Workspace
+
+An interactive learning environment designed to make complex academic topics easier to explore.
+
+- Visual explanations of concepts.
+- Structured learning content.
+- Interactive learning experiences.
+- A richer companion to traditional study materials.
+
+### 🎙️ 17. Voice Interaction
+
+- Voice-based interaction with the CampusGPT assistant.
+- Natural conversational access to campus information.
+- An additional interaction mode for hands-free assistance.
+
+## 🧠 AI-Powered Campus Assistant
+
+CampusGPT is designed to go beyond a conventional chatbot.
+
+A campus question may require live academic data, information from an uploaded document, or a general explanation. The assistant uses intent detection and routing to select the appropriate path.
+
 ```mermaid
 flowchart TD
-    A[User Question] --> B[AI Router]
-    B --> C[DB Query Tool]
-    B --> D[RAG Search]
-    B --> E[General LLM]
-    C --> F[Response]
-    D --> F
-    E --> F
+    A["User asks a question"] --> B["CampusGPT AI Assistant"]
+    B --> C["Intent Detection"]
+    C --> D["Campus ERP Data"]
+    C --> E["Document Retrieval (RAG)"]
+    C --> F["General AI Assistance"]
+    D --> G["Authorised Campus Context"]
+    E --> G
+    F --> H["General Explanation"]
+    G --> I["Context-Grounded Response"]
+    H --> J["Response to User"]
+    I --> J
 ```
 
----
+### Grounded, role-aware responses
 
-## 🚀 Getting Started
+- Campus-specific answers are based on available institutional data and documents.
+- Access permissions are enforced before protected information is retrieved.
+- The assistant is designed not to invent campus facts when the required information is unavailable.
+- General AI explanations are distinct from answers sourced from institutional records.
 
-These steps work for Windows, macOS, and Linux. On Windows, use PowerShell — commands are given for both where they differ.
+## 🏗️ High-Level Architecture
 
-### 1. Install prerequisites
+CampusGPT uses a modular application architecture with a React frontend, FastAPI backend, and PostgreSQL database.
 
-- **Git** — [git-scm.com/downloads](https://git-scm.com/downloads)
-- **Docker Desktop** — [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop/)
+```mermaid
+flowchart TB
+    U["Students · Faculty · Administrators"]
+    FE["React.js Frontend"]
+    API["FastAPI Backend"]
+    AUTH["Authentication & Role Access"]
+    ERP["Campus ERP Modules"]
+    AI["AI Assistant & Intent Router"]
+    RAG["Document Retrieval Pipeline"]
+    DB[("PostgreSQL")]
+    VEC[("pgvector")]
+    MODEL["AI / LLM Provider"]
 
-Open Docker Desktop and wait until it says **"Engine running"** before continuing.
-
-### 2. Clone the repository
-
-```bash
-git clone https://github.com/IshanWankhede/CampusGPT.git
-cd CampusGPT
+    U --> FE
+    FE --> API
+    API --> AUTH
+    API --> ERP
+    API --> AI
+    AUTH --> DB
+    ERP --> DB
+    AI --> RAG
+    RAG --> DB
+    RAG --> VEC
+    AI --> MODEL
 ```
 
-### 3. Create the local backend environment file
+## 🛠️ Technology
 
-```powershell
-# Windows PowerShell
-Copy-Item .env.example backend\.env
-```
-
-```bash
-# macOS/Linux
-cp .env.example backend/.env
-```
-
-Open `backend/.env` and fill in **at minimum**:
-
-```env
-JWT_SECRET_KEY=use-a-long-random-secret
-
-# Resend — for OTP email verification & password reset
-RESEND_API_KEY=your_resend_api_key
-EMAIL_FROM=onboarding@resend.dev
-
-# Google OAuth — for "Continue with Google" sign-in
-GOOGLE_CLIENT_ID=your_google_client_id
-GOOGLE_CLIENT_SECRET=your_google_client_secret
-GOOGLE_REDIRECT_URI=http://localhost:8000/api/v1/auth/google/callback
-FRONTEND_URL=http://localhost:5173
-```
-
-- `EMAIL_FROM` must be a sender/domain accepted by your Resend account (the default `onboarding@resend.dev` only delivers to your own Resend account email — see `ARCHITECTURE.md` §5.1 for the domain-verification steps needed to email other people).
-- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` come from your Google Cloud Console OAuth credentials (see `ARCHITECTURE.md` §5.3 for setup steps). Google sign-in is restricted to recognized college domains — see [Multi-College Support](#-multi-college-support) below.
-- Never commit `backend/.env` or paste real keys into GitHub — it's already listed in `.gitignore`.
-
-### 4. Build and start all services (Docker — recommended)
-
-```bash
-docker compose --env-file backend/.env up --build -d
-```
-
-```powershell
-# Windows PowerShell
-docker compose --env-file backend\.env up --build -d
-```
-
-This starts three containers: `campusgpt_db` (PostgreSQL + pgvector), `backend` (FastAPI, with Alembic migrations applied automatically on startup), and `frontend` (Vite dev server with hot module replacement).
-
-> ℹ️ The first build takes several minutes — dependencies are downloaded, and the backend uses CPU-only PyTorch to avoid pulling CUDA packages.
-
-The dev setup uses **live code reload** on both sides — no rebuild needed for ordinary code changes:
-- Backend: source is bind-mounted and `uvicorn --reload` picks up changes automatically
-- Frontend: `frontend/Dockerfile.dev` runs Vite's real dev server with HMR, not the production Nginx build
-
-You only need to rebuild (`--build`) when you add a new **dependency** (a pip package or an npm package) — not for ordinary source code edits.
-
-### 5. Check that everything is running
-
-```bash
-docker compose ps
-docker compose logs --tail 100 backend
-```
-
-| Service | URL / connection |
+| Layer | Technologies |
 |---|---|
-| Frontend | [http://localhost:5173](http://localhost:5173/) |
-| Backend API | [http://localhost:8000](http://localhost:8000/) |
-| Swagger docs | [http://localhost:8000/docs](http://localhost:8000/docs) |
-| Health check | [http://localhost:8000/health](http://localhost:8000/health) |
-| PostgreSQL from host (e.g. pgAdmin) | `localhost:5433` |
-| PostgreSQL inside Compose network | `campusgpt_db:5432` |
+| Frontend | React.js, JavaScript (JSX), Vite |
+| UI & Styling | Tailwind CSS v4 |
+| Icons | Lucide React |
+| Backend | Python, FastAPI |
+| Data validation | Pydantic |
+| ORM | SQLAlchemy 2.x |
+| Database migrations | Alembic |
+| Primary database | PostgreSQL |
+| Vector search | pgvector |
+| Authentication | JWT, Google OAuth, Email OTP |
+| Realtime communication | WebSocket |
+| Reverse proxy | Nginx |
+| Containerisation | Docker, Docker Compose |
 
-Migrations run automatically when the backend container starts.
+## 🧱 Design Principles
 
-### 6. Create your first Admin account
-
-Admin accounts aren't self-registered (they're provisioned, not signed up) — create the first one with the bootstrap script, run **inside the backend container**:
-
-```bash
-docker compose exec backend python -m app.create_admin
-```
-
-Or non-interactively with flags:
-```bash
-docker compose exec backend python -m app.create_admin --email admin@campusgpt.dev --name "Admin User" --password "YourSecretPassword"
-```
-
-Log in with these credentials through the normal Sign In page — the college selector on that screen can be set to anything for an Admin account, it's ignored for that role.
-
-### 7. Stop, restart, and rebuild
-
-```bash
-# Stop containers but keep database data
-docker compose down
-
-# Start existing containers again (fast, no rebuild)
-docker compose --env-file backend/.env up -d
-
-# Rebuild after adding a new dependency (pip/npm package)
-docker compose --env-file backend/.env up --build -d
-
-# Stop and DELETE the database volume (destructive — wipes all local data)
-docker compose down -v
-```
+- **Unified experience:** keep essential campus workflows connected.
+- **Role-aware by design:** provide relevant functionality according to user permissions.
+- **Security first:** protect student, faculty, and institutional information.
+- **Grounded AI:** base campus-specific responses on authorised information sources.
+- **Modular architecture:** keep features organised and maintainable.
+- **Accessible information:** make academic resources easier to discover and use.
 
 ---
 
-## 🏫 Multi-College Support
+<div align="center">
 
-CampusGPT supports multiple colleges, each restricted to its own official email domain. This applies to both local email+password signup and Google OAuth sign-in.
+### 🌱 One campus. Connected knowledge. Smarter experiences.
 
-| College | Required email domain |
-|---|---|
-| COEP (College of Engineering, Pune) | `coeptech.ac.in` |
-| PICT (Pune Institute of Computer Technology) | `pict.edu` |
-| VIT | `vit.edu` |
+**CampusGPT**  
+*Learn · Connect · Thrive*
 
-> ⚠️ Double-check these are each institution's real, current student/staff email domain before relying on them in production — an incorrect domain locks out real users. The mapping lives in one place in the backend config (`COLLEGE_DOMAIN_MAP`) for easy correction.
+<sub>An intelligent campus experience for the academic community.</sub>
 
-On Sign Up, selecting a college updates the expected email domain and validates against it before an OTP is sent. On Sign In, selecting a college is only required to enable the "Continue with Google" button (the college for Google sign-in is otherwise derived automatically from the verified email's domain).
-
----
-
-## 🗄️ Connect the database in pgAdmin
-
-Start the Docker stack first, then create a new server in pgAdmin with:
-
-| pgAdmin field | Value |
-|---|---|
-| Name | `CampusGPT Docker` |
-| Host name/address | `localhost` |
-| Port | `5433` |
-| Maintenance database | `campusgpt` |
-| Username | `campusgpt` |
-| Password | `campusgpt_dev` |
-
-The database is persisted in the Docker volume named `pgdata`. To inspect migrations from inside the backend container:
-
-```bash
-docker compose exec backend alembic current
-docker compose exec backend alembic history
-```
-
----
-
-## 🧑‍💻 Running without Docker (frontend/backend on the host)
-
-Docker is still recommended for PostgreSQL, since the project requires PostgreSQL with the `pgvector` extension.
-
-### 1. Start only the database via Docker
-
-```bash
-docker compose --env-file backend/.env up -d campusgpt_db
-```
-
-### 2. Install and run the backend
-
-Create `backend/.env` as described in step 3 above, then:
-
-```powershell
-cd backend
-python -m venv venv
-.\venv\Scripts\Activate.ps1     # Windows
-# source venv/bin/activate      # macOS/Linux
-
-pip install -r requirements.txt
-```
-
-For a host-run backend, point the database URL at the host-mapped port (`5433`, not the internal Compose port):
-
-```env
-DATABASE_URL=postgresql+psycopg2://campusgpt:campusgpt_dev@localhost:5433/campusgpt
-```
-
-Run migrations and start the API:
-
-```bash
-alembic upgrade head
-uvicorn app.main:app --reload --port 8000
-```
-
-To create your first Admin account when running this way (no Docker exec needed):
-```bash
-python -m app.create_admin
-```
-
-### 3. Install and run the frontend
-
-In another terminal:
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-The frontend runs at [http://localhost:5173](http://localhost:5173/) and proxies `/api` requests to the backend during development.
-
----
-
-## 🔑 Environment Variables
-
-The committed template is [`.env.example`](./.env.example). Copy it to `backend/.env` before starting the stack — never commit `backend/.env` itself; it's already listed in `.gitignore`.
-
-| Variable | Purpose |
-|---|---|
-| `DATABASE_URL` | PostgreSQL connection string (auto-set correctly inside Docker Compose) |
-| `JWT_SECRET_KEY` | Signs access/refresh tokens — use a long random string |
-| `JWT_ALGORITHM`, `ACCESS_TOKEN_EXPIRE_MINUTES`, `REFRESH_TOKEN_EXPIRE_DAYS` | Token config |
-| `RESEND_API_KEY`, `EMAIL_FROM` | OTP email delivery (verification, password reset) |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` | Google OAuth sign-in |
-| `FRONTEND_URL` | Where the backend redirects after OAuth completes |
-| `LLM_API_KEY`, `LLM_MODEL` | LLM provider for RAG/Chatbot (Phase 6+) |
-| `EMBEDDING_MODEL` | Sentence Transformers model for RAG (Phase 6+) |
-| `CORS_ORIGINS` | Allowed frontend origin(s) |
-
----
-
-## 🗺️ Build Roadmap
-
-The project is built in 11 phases, from foundation to production. Full detail in [`ARCHITECTURE.md`](./Architecture/ARCHITECTURE.md) and the live checklist in [`PHASES.md`](./Architecture/PHASES.md):
-
-1. **Foundation** — Git, FastAPI, React, PostgreSQL wired together ✅
-2. **Authentication** — Register, login, JWT, RBAC, OTP verification, password reset, multi-college Google OAuth ✅
-3. **Core ERP** — Users → Departments → Students/Faculty → Subjects → Timetable → Attendance → Assignments → Notices
-4. **Dashboards** — Student / Faculty / Admin UIs
-5. **Documents** — Upload, storage, text extraction
-6. **RAG** — Chunking, embeddings, pgvector search, LLM context building
-7. **AI Chatbot** — Intent router combining DB tools + RAG + general LLM
-8. **Analytics** — Charts and reporting per role
-9. **Face Recognition** *(optional)*
-10. **Advanced AI** *(optional)* — voice, recommendations, study planner
-11. **Production** — Docker, Nginx, HTTPS, CI/CD, monitoring, backups
-
----
-
-## 📖 API Overview
-
-All routes are versioned under `/api/v1/`. Full endpoint list in [`ARCHITECTURE.md`](./Architecture/ARCHITECTURE.md). Highlights:
-
-```
-POST /api/v1/auth/register
-POST /api/v1/auth/login
-POST /api/v1/auth/send-otp
-POST /api/v1/auth/verify-otp
-POST /api/v1/auth/forgot-password
-POST /api/v1/auth/reset-password
-GET  /api/v1/auth/google/login
-GET  /api/v1/auth/google/callback
-GET  /api/v1/students/{id}/attendance
-POST /api/v1/attendance/records
-POST /api/v1/documents/upload
-POST /api/v1/rag/query
-POST /api/v1/chat
-GET  /api/v1/analytics/admin
-```
-
----
-
-## 🔐 Security Notes
-
-- All protected endpoints verify JWT + role server-side — never trust the frontend to hide UI as the only guard
-- Passwords hashed with bcrypt; JWTs carry identity claims only, never sensitive data
-- OTPs are hashed before storage, expire in 10 minutes, single-use, and rate-limited (max 3 sends / 15 min)
-- Google OAuth's email domain check happens server-side only; college selection is never trusted from the frontend
-- File uploads are validated by type/size server-side; client-supplied filenames are never trusted directly
-- Secrets live in environment variables only, never committed
-
----
-
-## 🤝 Contributing
-
-This project is built incrementally, module by module (see roadmap above). When adding a new backend module, follow the existing `router/schemas/service/repository` pattern and the naming conventions already used in the codebase. Check [`PHASES.md`](./Architecture/PHASES.md) before starting a new module to confirm what's already built and what the next checklist items are.
-
-## 📄 License
-
-MIT License
+</div>
