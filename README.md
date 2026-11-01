@@ -220,6 +220,277 @@ An interactive learning environment designed to make complex academic topics eas
 - Natural conversational access to campus information.
 - An additional interaction mode for hands-free assistance.
 
+## 🧩 Technology Stack by Module
+
+CampusGPT follows a modular architecture in which each feature uses a combination of frontend technologies, backend services, database operations, and specialised libraries where required.
+
+The following table describes the technology stack associated with each major module.
+
+### 1. Authentication & Role-Based Access
+
+| Layer | Technologies |
+|---|---|
+| Frontend | React.js, JavaScript, Tailwind CSS |
+| Backend | Python, FastAPI |
+| Authentication | JWT, Google OAuth 2.0, Email OTP |
+| Data Validation | Pydantic |
+| Database | PostgreSQL |
+| ORM | SQLAlchemy 2.x |
+| Security | Password hashing, protected API routes, role-based access control |
+
+**Purpose:** Handles user registration, login, identity verification, session authentication, and access permissions for different campus roles.
+
+### 2. Student Dashboard
+
+| Layer | Technologies |
+|---|---|
+| Frontend | React.js, JavaScript, Tailwind CSS, Lucide React |
+| Backend | FastAPI |
+| API Communication | REST APIs |
+| Database | PostgreSQL |
+| ORM | SQLAlchemy 2.x |
+| Authentication | JWT-based protected routes |
+
+**Purpose:** Retrieves and displays personalised academic information such as attendance, timetable, assignments, notices, and student details.
+
+### 3. Faculty Dashboard
+
+| Layer | Technologies |
+|---|---|
+| Frontend | React.js, JavaScript, Tailwind CSS |
+| Backend | FastAPI |
+| API Communication | REST APIs |
+| Database | PostgreSQL |
+| ORM | SQLAlchemy 2.x |
+| Authentication | JWT and role-based access control |
+
+**Purpose:** Provides faculty members with access to classroom information, attendance operations, assignment management, and academic communication.
+
+### 4. Admin Dashboard
+
+| Layer | Technologies |
+|---|---|
+| Frontend | React.js, JavaScript, Tailwind CSS |
+| Backend | FastAPI |
+| Database | PostgreSQL |
+| ORM | SQLAlchemy 2.x |
+| Data Validation | Pydantic |
+| Authentication | JWT and role-based access control |
+
+**Purpose:** Supports administrative operations, institutional data management, user management, and academic oversight.
+
+### 5. Timetable Management
+
+| Layer | Technologies |
+|---|---|
+| Frontend | React.js, JavaScript |
+| Backend | FastAPI |
+| API Communication | REST APIs |
+| Database | PostgreSQL |
+| ORM | SQLAlchemy 2.x |
+| Data Validation | Pydantic |
+
+**Purpose:** Manages timetable records, class schedules, subjects, faculty assignments, and upcoming academic sessions.
+
+### 6. Attendance Management
+
+| Layer | Technologies |
+|---|---|
+| Frontend | React.js, JavaScript |
+| Backend | FastAPI, Python |
+| Database | PostgreSQL |
+| ORM | SQLAlchemy 2.x |
+| API Communication | REST APIs |
+| Authentication | JWT and role-based access control |
+
+**Purpose:** Records attendance, calculates attendance percentages, and provides attendance summaries for students, faculty, and administrators.
+
+**Optional face-recognition attendance extension:**
+
+| Component | Technologies |
+|---|---|
+| Camera Interface | React.js, Browser MediaDevices API |
+| Image Processing | OpenCV |
+| Face Detection | InsightFace / SCRFD |
+| Face Recognition | ArcFace embeddings |
+| Backend Processing | Python, FastAPI |
+| Vector Storage | PostgreSQL, pgvector |
+
+*Note: The face-recognition stack is an optional extension. Model licensing, biometric consent, anti-spoofing, and secure handling of face embeddings must be considered before deployment.*
+
+### 7. Assignment Management
+
+| Layer | Technologies |
+|---|---|
+| Frontend | React.js, JavaScript |
+| Backend | FastAPI |
+| Database | PostgreSQL |
+| ORM | SQLAlchemy 2.x |
+| Data Validation | Pydantic |
+| File Handling | FastAPI file upload support |
+
+**Purpose:** Handles assignment creation, deadlines, student submissions, submission tracking, and assignment-related resources.
+
+### 8. Notices & Notifications
+
+| Layer | Technologies |
+|---|---|
+| Frontend | React.js, JavaScript |
+| Backend | FastAPI |
+| Database | PostgreSQL |
+| ORM | SQLAlchemy 2.x |
+| Realtime Communication | WebSocket |
+| API Communication | REST APIs |
+
+**Purpose:** Manages campus announcements, targeted notices, and notification updates. WebSockets can support real-time delivery where implemented.
+
+### 9. Document Management
+
+| Layer | Technologies |
+|---|---|
+| Frontend | React.js, JavaScript |
+| Backend | FastAPI, Python |
+| File Upload | FastAPI UploadFile |
+| Database | PostgreSQL |
+| ORM | SQLAlchemy 2.x |
+| Supported Formats | PDF, DOCX |
+| Document Processing | Python document-processing libraries |
+
+**Purpose:** Supports document uploads, organisation, storage metadata, and retrieval of academic and institutional resources.
+
+*Note: The exact PDF/DOCX extraction libraries depend on the document-processing implementation.*
+
+### 10. CampusGPT AI Assistant
+
+| Layer | Technologies |
+|---|---|
+| Frontend | React.js, JavaScript |
+| Backend | Python, FastAPI |
+| AI Integration | LLM API / AI model provider |
+| Request Processing | Intent Detection and Routing |
+| Data Access | PostgreSQL |
+| Authentication | JWT |
+| Realtime Communication | WebSocket |
+
+**Purpose:** Processes natural-language questions, identifies user intent, retrieves relevant information, and generates context-aware responses.
+
+### 11. Intelligent Document Search (RAG)
+
+| Layer | Technologies |
+|---|---|
+| Backend | Python, FastAPI |
+| Document Processing | PDF/DOCX extraction libraries |
+| Text Processing | Python |
+| Embeddings | Embedding model |
+| Vector Database | PostgreSQL with pgvector |
+| Similarity Search | pgvector |
+| Response Generation | LLM API / AI model provider |
+
+**Purpose:** Implements Retrieval-Augmented Generation by processing institutional documents, generating embeddings, retrieving relevant text chunks, and supplying contextual information to the language model.
+
+### 12. Intent Detection & Intelligent Routing
+
+| Layer | Technologies |
+|---|---|
+| Frontend | React.js, JavaScript |
+| Backend | Python, FastAPI |
+| Intent Processing | Python-based intent detection |
+| Routing | Modular backend service architecture |
+| Data Retrieval | PostgreSQL, SQLAlchemy |
+| Document Retrieval | PostgreSQL, pgvector |
+| Authentication | JWT and role-based access control |
+
+**Purpose:** Determines whether a question requires campus ERP data, document retrieval, or general AI assistance and routes it to the appropriate backend service.
+
+### 13. Academic Analytics
+
+| Layer | Technologies |
+|---|---|
+| Frontend | React.js, JavaScript |
+| Backend | FastAPI |
+| Data Processing | Python |
+| Database | PostgreSQL |
+| ORM | SQLAlchemy 2.x |
+| Visualisation | Charting library (implementation-dependent) |
+
+**Purpose:** Processes academic records and presents attendance summaries, academic indicators, and progress trends.
+
+### 14. Placement & Career Opportunities
+
+| Layer | Technologies |
+|---|---|
+| Frontend | React.js, JavaScript |
+| Backend | FastAPI |
+| Database | PostgreSQL |
+| ORM | SQLAlchemy 2.x |
+| API Communication | REST APIs |
+| Authentication | JWT and role-based access control |
+
+**Purpose:** Organises placement information, internship opportunities, company details, and career-related updates.
+
+### 15. Course Recommendation System
+
+| Layer | Technologies |
+|---|---|
+| Frontend | React.js, JavaScript |
+| Backend | Python, FastAPI |
+| Data Processing | Python |
+| Database | PostgreSQL |
+| ORM | SQLAlchemy 2.x |
+| Recommendation Logic | Recommendation algorithm (implementation-dependent) |
+
+**Purpose:** Uses academic interests and relevant learning information to help users discover suitable courses and learning paths.
+
+### 16. Visual Learning Workspace
+
+| Layer | Technologies |
+|---|---|
+| Frontend | React.js, JavaScript, Tailwind CSS |
+| Backend | FastAPI |
+| Content Processing | Python |
+| AI Integration | LLM API / AI model provider |
+| Database | PostgreSQL |
+
+**Purpose:** Presents structured educational content and interactive learning experiences.
+
+### 17. Voice Interaction
+
+| Layer | Technologies |
+|---|---|
+| Frontend | React.js, JavaScript |
+| Browser Audio | Web Audio API / MediaDevices API |
+| Backend | FastAPI |
+| Speech Recognition | Speech-to-Text service (implementation-dependent) |
+| Voice Generation | Text-to-Speech service (implementation-dependent) |
+| AI Integration | CampusGPT AI Assistant |
+
+**Purpose:** Enables voice-based interaction with the assistant through speech recognition and speech synthesis services.
+
+### Shared Infrastructure & Development Tools
+
+The following technologies support the overall CampusGPT application rather than belonging to only one module.
+
+| Category | Technologies |
+|---|---|
+| Frontend Build Tool | Vite |
+| Frontend Framework | React.js |
+| Programming Languages | JavaScript, Python |
+| Backend Framework | FastAPI |
+| Data Validation | Pydantic |
+| ORM | SQLAlchemy 2.x |
+| Database Migrations | Alembic |
+| Primary Database | PostgreSQL |
+| Vector Search | pgvector |
+| Authentication | JWT, Google OAuth, Email OTP |
+| Realtime Communication | WebSocket |
+| Reverse Proxy | Nginx |
+| Containerisation | Docker |
+| Multi-container Management | Docker Compose |
+| Version Control | Git, GitHub |
+| API Documentation | FastAPI / OpenAPI, Swagger UI |
+
+**Architecture Note:** CampusGPT uses a modular application architecture. Modules share common backend services, authentication, database infrastructure, and API communication rather than requiring a separate technology stack or server for every feature.
+
 ## 🧠 AI-Powered Campus Assistant
 
 CampusGPT is designed to go beyond a conventional chatbot.
