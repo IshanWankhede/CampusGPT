@@ -11,7 +11,7 @@ import httpx
 from jose import JWTError
 from sqlalchemy.orm import Session
 
-from app.auth import service
+from app.auth import rate_limiter, service
 from app.auth.schemas import (
     AccessTokenResponse,
     ForgotPasswordRequest,
@@ -62,21 +62,27 @@ def register(request: RegisterRequest, db: DbSession) -> UserResponse:
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(request: LoginRequest, db: DbSession) -> TokenResponse:
+def login(request: LoginRequest, db: DbSession, http_request: Request) -> TokenResponse:
+    rate_limiter.check_rate_limit(db, http_request, "login", identifier=request.email)
+
     try:
         user = service.authenticate_user(db, request.email, request.password, request.college)
     except ValueError as exc:
+        rate_limiter.record_attempt(db, http_request, "login", identifier=request.email, success=False)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
 
     if user is None or not user.is_active:
+        rate_limiter.record_attempt(db, http_request, "login", identifier=request.email, success=False)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
     if not user.is_email_verified:
+        rate_limiter.record_attempt(db, http_request, "login", identifier=request.email, success=False)
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Please verify your email before signing in")
 
+    rate_limiter.record_attempt(db, http_request, "login", identifier=request.email, success=True)
     user_resp = UserResponse.model_validate(user)
     pending_req = service.repository.get_pending_role_request_for_user(db, user.id)
     if pending_req:
@@ -368,15 +374,22 @@ def admin_test(
 
 
 @router.post("/send-otp")
-def send_otp(request: SendOtpRequest, db: DbSession) -> dict[str, str]:
+def send_otp(request: SendOtpRequest, db: DbSession, http_request: Request) -> dict[str, str]:
+    rate_limiter.check_rate_limit(db, http_request, "otp_send", identifier=request.email)
+
     user = service.repository.get_user_by_email(db, request.email)
     if request.purpose.value == "PASSWORD_RESET":
+        rate_limiter.record_attempt(db, http_request, "otp_send", identifier=request.email, success=True)
         if user:
             try:
                 service.create_and_send_otp(db, user, request.purpose)
             except ValueError as exc:
                 if "Too many" in str(exc):
-                    raise HTTPException(status_code=429, detail=str(exc)) from exc
+                    raise HTTPException(
+                        status_code=429,
+                        detail=str(exc),
+                        headers={"Retry-After": "900"},
+                    ) from exc
             except RuntimeError as exc:
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -392,15 +405,18 @@ def send_otp(request: SendOtpRequest, db: DbSession) -> dict[str, str]:
 
     # User enumeration defense: if account already exists and is verified, return generic success without sending code
     if user is not None and user.is_email_verified:
+        rate_limiter.record_attempt(db, http_request, "otp_send", identifier=request.email, success=True)
         return {"message": "Verification code sent"}
 
     try:
         service.create_and_send_otp(
             db, user, request.purpose, email=request.email, college=request.college
         )
+        rate_limiter.record_attempt(db, http_request, "otp_send", identifier=request.email, success=True)
     except ValueError as exc:
         code = 429 if "Too many" in str(exc) else 400
-        raise HTTPException(status_code=code, detail=str(exc)) from exc
+        headers = {"Retry-After": "900"} if code == 429 else None
+        raise HTTPException(status_code=code, detail=str(exc), headers=headers) from exc
     except RuntimeError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -410,11 +426,15 @@ def send_otp(request: SendOtpRequest, db: DbSession) -> dict[str, str]:
 
 
 @router.post("/verify-otp")
-def verify_otp(request: VerifyOtpRequest, db: DbSession) -> dict[str, str]:
+def verify_otp(request: VerifyOtpRequest, db: DbSession, http_request: Request) -> dict[str, str]:
+    rate_limiter.check_rate_limit(db, http_request, "otp_verify", identifier=request.email)
+
     user = service.repository.get_user_by_email(db, request.email)
     try:
         service.verify_otp(db, user, request.otp, request.purpose, email=request.email)
+        rate_limiter.record_attempt(db, http_request, "otp_verify", identifier=request.email, success=True)
     except ValueError as exc:
+        rate_limiter.record_attempt(db, http_request, "otp_verify", identifier=request.email, success=False)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if request.purpose.value == "EMAIL_VERIFY" and user is not None:
         user.is_email_verified = True
@@ -423,20 +443,28 @@ def verify_otp(request: VerifyOtpRequest, db: DbSession) -> dict[str, str]:
 
 
 @router.post("/forgot-password")
-def forgot_password(request: ForgotPasswordRequest, db: DbSession) -> dict[str, str]:
-    return send_otp(SendOtpRequest(email=request.email, purpose="PASSWORD_RESET"), db)
+def forgot_password(request: ForgotPasswordRequest, db: DbSession, http_request: Request) -> dict[str, str]:
+    return send_otp(SendOtpRequest(email=request.email, purpose="PASSWORD_RESET"), db, http_request)
 
 
 @router.post("/reset-password")
-def reset_password(request: ResetPasswordRequest, db: DbSession) -> dict[str, str]:
+def reset_password(request: ResetPasswordRequest, db: DbSession, http_request: Request) -> dict[str, str]:
+    rate_limiter.check_rate_limit(db, http_request, "password_reset", identifier=request.email)
+    rate_limiter.check_rate_limit(db, http_request, "otp_verify", identifier=request.email)
+
     user = service.repository.get_user_by_email(db, request.email)
     if user is None:
+        rate_limiter.record_attempt(db, http_request, "password_reset", identifier=request.email, success=False)
         raise HTTPException(status_code=400, detail="Invalid or expired code")
     try:
         service.verify_otp(db, user, request.otp, "PASSWORD_RESET")
+        rate_limiter.record_attempt(db, http_request, "otp_verify", identifier=request.email, success=True)
     except ValueError as exc:
+        rate_limiter.record_attempt(db, http_request, "otp_verify", identifier=request.email, success=False)
+        rate_limiter.record_attempt(db, http_request, "password_reset", identifier=request.email, success=False)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     user.hashed_password = service.hash_password(request.new_password)
     db.commit()
+    rate_limiter.record_attempt(db, http_request, "password_reset", identifier=request.email, success=True)
     return {"message": "Password updated"}
 

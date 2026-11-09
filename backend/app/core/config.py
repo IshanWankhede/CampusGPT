@@ -46,6 +46,16 @@ class Settings(BaseSettings):
     GOOGLE_REDIRECT_URI: str = "http://localhost:8000/api/v1/auth/google/callback"
     FRONTEND_URL: str = "http://localhost:5173"
 
+    # ── Rate Limiting (WP5) ───────────────────────────────────────────────
+    RATE_LIMIT_ENABLED: bool = True
+    TRUSTED_PROXIES: str = "127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+    RATE_LIMIT_LOGIN_FAILURES_PER_IDENTIFIER: int = 5
+    RATE_LIMIT_LOGIN_FAILURES_PER_IP: int = 20
+    RATE_LIMIT_OTP_SEND_PER_IDENTIFIER: int = 3
+    RATE_LIMIT_OTP_SEND_PER_IP: int = 10
+    RATE_LIMIT_OTP_VERIFY_PER_IDENTIFIER: int = 10
+    RATE_LIMIT_PASSWORD_RESET_PER_IDENTIFIER: int = 5
+
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
         env_file_encoding="utf-8",

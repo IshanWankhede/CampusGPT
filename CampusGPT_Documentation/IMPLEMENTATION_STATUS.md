@@ -17,7 +17,7 @@ Update after every prompt. Never mark a feature complete because its UI exists.
 | WP2 critical auth fixes + faculty approval | Implemented | 5 (Tested) | Revisions 0007-0008, C1/C2/C3 closed, role request lifecycle & CLI, 31 passing tests |
 | WP3 production configuration | Implemented | 5 (Tested) | Startup guards G1–G8, PostgreSQL-only enforcement, DB URL parsing/normalization, CORS localhost restriction, docs disabled in non-dev, sanitized /health, 94 tests passing |
 | WP4 OAuth code exchange | Implemented | 5 (Tested) | One-time browser-bound exchange code flow; migration 0009 (login_codes table); POST /google/exchange; `oauth_binding_nonce` HttpOnly cookie; atomic UPDATE…RETURNING; Origin validation; Nginx log sanitization; frontend URL scrubbing; 110/110 tests passing; `campusgpt` DB untouched at rev 0005 |
-| WP5 rate limiting | Not started | — | |
+| WP5 rate limiting | Implemented | 5 (Tested) | Database-backed rate limiting via `auth_attempts` table (rev 0010); dual-dimension throttling (account & IP); HTTP 429 with Retry-After header; spoofed header protection via trusted proxy resolution; 121/121 tests passing; `campusgpt` DB untouched at rev 0005 |
 | WP6 refresh rotation/revocation | Not started | — | |
 | WP7 frontend auth integration | Not started | — | |
 | WP8 Docker migration strategy | Not started | — | |

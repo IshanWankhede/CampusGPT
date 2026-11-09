@@ -36,10 +36,10 @@ def clean_database():
     """Wipes test database tables before each test to guarantee test isolation."""
     assert_test_database(TEST_DATABASE_URL)
     with test_engine.begin() as conn:
-        conn.execute(text("TRUNCATE TABLE otp_verifications, users CASCADE;"))
+        conn.execute(text("TRUNCATE TABLE auth_attempts, login_codes, otp_verifications, users CASCADE;"))
     yield
     with test_engine.begin() as conn:
-        conn.execute(text("TRUNCATE TABLE otp_verifications, users CASCADE;"))
+        conn.execute(text("TRUNCATE TABLE auth_attempts, login_codes, otp_verifications, users CASCADE;"))
 
 
 @pytest.fixture
