@@ -57,8 +57,9 @@ def db_session() -> Generator[Session, None, None]:
 @pytest.fixture(autouse=True)
 def mock_email_sender():
     """Fakes Resend email delivery so tests never perform external HTTP requests."""
-    with patch("app.core.email.send_email", return_value=None) as mock_send:
-        yield mock_send
+    with patch("app.auth.service.send_email", return_value=None) as mock_auth_send, \
+         patch("app.core.email.send_email", return_value=None):
+        yield mock_auth_send
 
 
 @pytest.fixture
