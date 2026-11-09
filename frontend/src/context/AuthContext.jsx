@@ -1,203 +1,182 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
-
-const API_BASE = "/api/v1/auth";
-const STORAGE_KEY = "campusgpt.auth";
+import { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
+import {
+  apiFetch,
+  clearStoredSession,
+  getStoredSession,
+  saveStoredSession,
+  subscribeSession,
+} from "../services/api";
+import { getRoleStatus } from "../utils/roleUtils";
 
 const AuthContext = createContext(null);
 
-let refreshPromise = null;
-
-async function executeRefresh(refreshToken) {
-  if (!refreshPromise) {
-    refreshPromise = fetch(`${API_BASE}/refresh`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: refreshToken }),
-    })
-      .then(async (res) => {
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          throw new Error(data.detail || "Session refresh failed");
-        }
-        return data;
-      })
-      .finally(() => {
-        refreshPromise = null;
-      });
-  }
-  return refreshPromise;
-}
-
-async function request(path, options = {}, onSessionUpdate = null, onSessionClear = null) {
-  const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers,
-  });
-
-  if (
-    response.status === 401 &&
-    !options._retry &&
-    !path.startsWith("/login") &&
-    !path.startsWith("/refresh") &&
-    !path.startsWith("/register") &&
-    !path.startsWith("/logout")
-  ) {
-    try {
-      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY)) || null;
-      if (stored?.refresh_token) {
-        const nextSession = await executeRefresh(stored.refresh_token);
-        const merged = { ...stored, ...nextSession };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-        if (onSessionUpdate) onSessionUpdate(merged);
-
-        return request(
-          path,
-          {
-            ...options,
-            _retry: true,
-            headers: {
-              ...(options.headers || {}),
-              Authorization: `Bearer ${nextSession.access_token}`,
-            },
-          },
-          onSessionUpdate,
-          onSessionClear,
-        );
-      }
-    } catch {
-      localStorage.removeItem(STORAGE_KEY);
-      if (onSessionClear) onSessionClear();
-    }
-  }
-
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const detail = Array.isArray(payload.detail)
-      ? payload.detail.map((item) => item.msg).join(", ")
-      : payload.detail || "Authentication request failed";
-    throw new Error(detail);
-  }
-  return payload;
-}
-
 export function AuthProvider({ children }) {
-  const [session, setSession] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY)) || null;
-    } catch {
-      return null;
+  const [session, setSession] = useState(() => getStoredSession());
+  const [loading, setLoading] = useState(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get("code")) return true;
     }
+    return Boolean(getStoredSession()?.access_token);
   });
-  const [loading, setLoading] = useState(Boolean(session));
 
-  const authRequest = (path, options) =>
-    request(path, options, setSession, () => setSession(null));
+  const saveSession = useCallback((nextSession) => {
+    saveStoredSession(nextSession);
+    setSession(nextSession);
+  }, []);
 
+  const clearSession = useCallback(() => {
+    clearStoredSession();
+    setSession(null);
+  }, []);
+
+  // Listen to background session updates (e.g. from token refresh or other tabs)
   useEffect(() => {
+    const unsubscribe = subscribeSession(({ type, session: updatedSession }) => {
+      if (type === "UPDATE") {
+        setSession(updatedSession);
+      } else if (type === "CLEAR") {
+        setSession(null);
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  // Handle OAuth code exchange or session initialization on mount
+  useEffect(() => {
+    let isMounted = true;
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get("code");
 
     if (code) {
+      // Immediate URL cleanup to avoid temporary code leakage in history/referrer
       window.history.replaceState({}, document.title, window.location.pathname);
 
-      authRequest("/google/exchange", {
+      apiFetch("/auth/google/exchange", {
         method: "POST",
         credentials: "include",
         body: JSON.stringify({ code }),
       })
         .then((tokenData) => {
+          if (!isMounted) return;
           saveSession(tokenData);
+          setLoading(false);
           window.location.href = "/app";
         })
         .catch((error) => {
+          if (!isMounted) return;
           setLoading(false);
-          window.location.href = `/auth?error=${encodeURIComponent(error.message)}`;
+          const encodedErr = encodeURIComponent(error.message || "Google sign-in failed.");
+          window.location.href = `/auth?error=${encodedErr}`;
         });
-      return;
+      return () => {
+        isMounted = false;
+      };
     }
 
-    if (!session?.access_token) {
-      setLoading(false);
-      return;
+    const current = getStoredSession();
+    if (!current?.access_token) {
+      // Initialized to false; no action required
+      return () => {
+        isMounted = false;
+      };
     }
 
-    authRequest("/me", {
-      headers: { Authorization: `Bearer ${session.access_token}` },
-    })
-      .then((user) => setSession((current) => ({ ...current, user })))
-      .catch(() => {
-        localStorage.removeItem(STORAGE_KEY);
-        setSession(null);
+    // Validate active session against /api/v1/auth/me
+    apiFetch("/auth/me")
+      .then((user) => {
+        if (!isMounted) return;
+        const merged = { ...current, user };
+        saveSession(merged);
       })
-      .finally(() => setLoading(false));
+      .catch(() => {
+        if (!isMounted) return;
+        clearSession();
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [saveSession, clearSession]);
+
+  const login = useCallback(
+    async (email, password, college) => {
+      const nextSession = await apiFetch("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password, college }),
+      });
+      const user = await apiFetch("/auth/me", {
+        headers: { Authorization: `Bearer ${nextSession.access_token}` },
+      });
+      const fullSession = { ...nextSession, user };
+      saveSession(fullSession);
+      return user;
+    },
+    [saveSession]
+  );
+
+  const register = useCallback(
+    async (fullName, email, password, role, college) => {
+      return apiFetch("/auth/register", {
+        method: "POST",
+        body: JSON.stringify({ full_name: fullName, email, password, role, college }),
+      });
+    },
+    []
+  );
+
+  const sendOtp = useCallback(async (email, purpose, college) => {
+    return apiFetch("/auth/send-otp", {
+      method: "POST",
+      body: JSON.stringify({ email, purpose, college }),
+    });
   }, []);
 
-  const saveSession = (nextSession) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(nextSession));
-    setSession(nextSession);
-  };
-
-  const login = async (email, password, college) => {
-    const nextSession = await authRequest("/login", {
+  const verifyOtp = useCallback(async (email, otp, purpose) => {
+    return apiFetch("/auth/verify-otp", {
       method: "POST",
-      body: JSON.stringify({ email, password, college }),
+      body: JSON.stringify({ email, otp, purpose }),
     });
-    const user = await authRequest("/me", {
-      headers: { Authorization: `Bearer ${nextSession.access_token}` },
-    });
-    saveSession({ ...nextSession, user });
-    return user;
-  };
+  }, []);
 
-  const register = async (fullName, email, password, role, college) => {
-    return authRequest("/register", {
+  const forgotPassword = useCallback(async (email) => {
+    return apiFetch("/auth/forgot-password", {
       method: "POST",
-      body: JSON.stringify({ full_name: fullName, email, password, role, college }),
+      body: JSON.stringify({ email }),
     });
-  };
+  }, []);
 
-  const sendOtp = (email, purpose, college) =>
-    authRequest("/send-otp", { method: "POST", body: JSON.stringify({ email, purpose, college }) });
-  const verifyOtp = (email, otp, purpose) =>
-    authRequest("/verify-otp", { method: "POST", body: JSON.stringify({ email, otp, purpose }) });
-  const forgotPassword = (email) =>
-    authRequest("/forgot-password", { method: "POST", body: JSON.stringify({ email }) });
-  const resetPassword = (email, otp, newPassword) =>
-    authRequest("/reset-password", {
+  const resetPassword = useCallback(async (email, otp, newPassword) => {
+    return apiFetch("/auth/reset-password", {
       method: "POST",
       body: JSON.stringify({ email, otp, new_password: newPassword }),
     });
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     const currentRefresh = session?.refresh_token;
     if (session?.access_token || currentRefresh) {
-      await fetch(`${API_BASE}/logout`, {
+      await apiFetch("/auth/logout", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-        },
         body: JSON.stringify({ refresh_token: currentRefresh || null }),
       }).catch(() => {});
     }
-    localStorage.removeItem(STORAGE_KEY);
-    setSession(null);
-  };
+    clearSession();
+  }, [session, clearSession]);
 
-  const logoutAll = async () => {
+  const logoutAll = useCallback(async () => {
     if (session?.access_token) {
-      await fetch(`${API_BASE}/logout-all`, {
+      await apiFetch("/auth/logout-all", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
       }).catch(() => {});
     }
-    localStorage.removeItem(STORAGE_KEY);
-    setSession(null);
-  };
+    clearSession();
+  }, [session, clearSession]);
+
+  const roleInfo = useMemo(() => getRoleStatus(session?.user), [session?.user]);
 
   const value = useMemo(
     () => ({
@@ -213,8 +192,31 @@ export function AuthProvider({ children }) {
       resetPassword,
       logout,
       logoutAll,
+      // Role & permissions helpers
+      role: roleInfo.role,
+      isStudent: roleInfo.isStudent,
+      isFaculty: roleInfo.isFaculty,
+      isAdmin: roleInfo.isAdmin,
+      isPendingFaculty: roleInfo.isPendingFaculty,
+      pendingRoleRequest: roleInfo.pendingRoleRequest,
+      canAccessFaculty: roleInfo.canAccessFaculty,
+      canAccessAdmin: roleInfo.canAccessAdmin,
+      canAccessStudent: roleInfo.canAccessStudent,
+      defaultDashboardRoute: roleInfo.defaultDashboardRoute,
     }),
-    [session, loading],
+    [
+      session,
+      loading,
+      login,
+      register,
+      sendOtp,
+      verifyOtp,
+      forgotPassword,
+      resetPassword,
+      logout,
+      logoutAll,
+      roleInfo,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
