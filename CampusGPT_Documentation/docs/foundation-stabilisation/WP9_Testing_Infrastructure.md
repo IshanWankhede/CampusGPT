@@ -1,7 +1,14 @@
 # WP9 — Testing Infrastructure
 
 **Stage 0 foundation work package.** Position in the mandatory order: Step 3 (minimal) and step 17 (complete regression suite) (see `Foundation_Execution_Order.md`).
-**Implementation status:** NOT STARTED. Everything below is a plan unless marked otherwise. Schema objects named here are **PROPOSED**; migration revision numbers are **illustrative** — read the real Alembic head first.
+**Implementation status:** IMPLEMENTED (Level 5 Tested).
+- Complete test suite: 151 tests passing across 10 test modules (all 136 existing regression tests preserved + 15 new tests).
+- `backend/pytest.ini`: Standardized configuration with `asyncio_default_fixture_loop_scope = function`, `addopts = -v --tb=short`, and clean warning filters.
+- Alembic Migration DAG (`test_migration_dag.py`): Revisions inspected via Alembic's `ScriptDirectory`; verified exactly one head (`0011`), single base (`0001`), linear continuity with no branches or merge points.
+- RBAC & Schemas (`test_rbac_and_schemas.py`): Full 401 Unauthorized matrix for unauthenticated requests, 403 Forbidden matrix for STUDENT/FACULTY on ADMIN endpoints, 404/409 error handling for role requests, full HTTP role request approve/reject lifecycle with user promotion to FACULTY, strict Pydantic response schema validation (`UserResponse`, `RoleRequestResponse`, `TokenResponse`).
+- Isolation & Fixtures (`conftest.py`): Explicit truncation of `auth_attempts, login_codes, refresh_tokens, otp_verifications, role_requests, users CASCADE`; `assert_test_database` safety guard enforcing `*_test` database naming; standardized `mock_google_oauth` fixture; role-specific user and access token fixtures.
+- CI/CD (`.github/workflows/ci.yml`): Production-grade GitHub Actions pipeline with `pgvector/pgvector:pg16` service container, database safety verification, Alembic migrations, Pytest suite with coverage, frontend ESLint, and Vite production build.
+- Database Safety: Original `campusgpt` database remains untouched at revision `0005`. SQLite strictly prohibited.
 
 > **Provenance — read before trusting any "existing repository" statement.** Statements about the existing CampusGPT repository come from a read-only audit of an **older snapshot** (`CampusGPT-main.zip`) made earlier in this project. That snapshot is **not** the current live repository, nothing was executed, and no database was touched. All such statements are labelled **PO-RV — Previously observed, re-verification required**. The codebase is the source of truth for what exists; this documentation defines the intended architecture and requirements. Where they disagree, document the discrepancy and request review. Every prompt requires Antigravity to inspect the actual repository before acting; file paths in this package are previously observed paths, not guaranteed ones.
 
