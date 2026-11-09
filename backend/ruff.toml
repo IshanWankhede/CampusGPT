@@ -1,0 +1,18 @@
+# Ruff configuration for CampusGPT backend (PD-08)
+target-version = "py311"
+line-length = 120
+
+[lint]
+select = [
+    "E",  # pycodestyle errors
+    "F",  # pyflakes
+    "W",  # pycodestyle warnings
+]
+ignore = [
+    "E501",  # line length
+    "F401",  # unused imports in baseline modules
+    "F841",  # local variable assigned but never used
+    "F541",  # f-string without placeholders
+    "W292",  # no newline at end of file
+]
+

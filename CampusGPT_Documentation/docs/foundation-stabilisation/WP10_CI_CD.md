@@ -1,7 +1,19 @@
 # WP10 — CI/CD and Verification
 
 **Stage 0 foundation work package.** Position in the mandatory order: Step 15 (see `Foundation_Execution_Order.md`).
-**Implementation status:** NOT STARTED. Everything below is a plan unless marked otherwise. Schema objects named here are **PROPOSED**; migration revision numbers are **illustrative** — read the real Alembic head first.
+**Implementation status:** IMPLEMENTED (Level 5 Tested).
+- Pipeline definition: `.github/workflows/ci.yml` with top-level `permissions: contents: read` and third-party actions pinned to immutable commit SHAs.
+- Three dedicated jobs:
+  1. `backend-verification` (Display: `Backend Verification & Drift Check`): PostgreSQL 16 + pgvector container, database safety assertion, Alembic migration (`alembic upgrade head`), Alembic schema zero-drift check (`alembic check`), Ruff backend linter (`ruff check app tests`), and full Pytest suite with coverage.
+  2. `security-regression` (Display: `Security Regression Suite`): Discrete named required check running 71 security-critical tests (`test_auth_wp2.py`, `test_auth_wp4.py`, `test_rate_limit_wp5.py`, `test_refresh_token_wp6.py`, `test_rbac_and_schemas.py`).
+  3. `frontend-quality` (Display: `Frontend Quality & Production Build`): Node 20 runner executing `npm ci`, `npm run lint`, and `npm run build`.
+- PD-08 Resolution: Ruff approved as backend linter; added to `backend/requirements-dev.txt` and configured via `backend/ruff.toml`.
+- Required GitHub Branch Protection Status Checks:
+  - `Backend Verification & Drift Check`
+  - `Security Regression Suite`
+  - `Frontend Quality & Production Build`
+- Failure-Handling Rule: Strictly enforced forward-only fixing. Pull requests or branches cannot be merged if any required check is red. Tests must never be skipped or weakened to pass CI.
+- Database Safety: CI executes strictly against isolated `campusgpt_test`. The original `campusgpt` database is untouched at revision `0005`.
 
 > **Provenance — read before trusting any "existing repository" statement.** Statements about the existing CampusGPT repository come from a read-only audit of an **older snapshot** (`CampusGPT-main.zip`) made earlier in this project. That snapshot is **not** the current live repository, nothing was executed, and no database was touched. All such statements are labelled **PO-RV — Previously observed, re-verification required**. The codebase is the source of truth for what exists; this documentation defines the intended architecture and requirements. Where they disagree, document the discrepancy and request review. Every prompt requires Antigravity to inspect the actual repository before acting; file paths in this package are previously observed paths, not guaranteed ones.
 

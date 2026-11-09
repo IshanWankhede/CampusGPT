@@ -6,13 +6,16 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  backend-tests:
-    name: Backend Tests & Migrations
+  backend-verification:
+    name: Backend Verification & Drift Check
     runs-on: ubuntu-latest
 
     services:
@@ -45,10 +48,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
         with:
           python-version: "3.11"
           cache: "pip"
@@ -71,21 +74,96 @@ jobs:
         run: |
           alembic upgrade head
 
+      - name: Verify zero schema drift (alembic check)
+        working-directory: backend
+        run: |
+          alembic check
+
+      - name: Run Ruff backend linter (PD-08)
+        working-directory: backend
+        run: |
+          ruff check app tests
+
       - name: Run Pytest test suite with coverage
         working-directory: backend
         run: |
           pytest --cov=app --cov-report=term-missing
 
+  security-regression:
+    name: Security Regression Suite
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: campusgpt
+          POSTGRES_PASSWORD: campusgpt_ci_password
+          POSTGRES_DB: campusgpt_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+psycopg2://campusgpt:campusgpt_ci_password@localhost:5432/campusgpt_test
+      TEST_DATABASE_URL: postgresql+psycopg2://campusgpt:campusgpt_ci_password@localhost:5432/campusgpt_test
+      JWT_SECRET_KEY: ci_test_jwt_secret_key_minimum_32_characters_long_for_security
+      SECRET_KEY: ci_test_jwt_secret_key_minimum_32_characters_long_for_security
+      GOOGLE_CLIENT_ID: ci_dummy_google_client_id.apps.googleusercontent.com
+      GOOGLE_CLIENT_SECRET: ci_dummy_google_client_secret
+      GOOGLE_REDIRECT_URI: http://localhost:8000/api/v1/auth/google/callback
+      RESEND_API_KEY: re_ci_dummy_resend_api_key
+      FRONTEND_URL: http://localhost:5173
+      ENV: development
+      CORS_ORIGINS: http://localhost:5173
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38 # v5.4.0
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+
+      - name: Validate database safety guard
+        working-directory: backend
+        run: |
+          python -c "from tests.conftest import assert_test_database; assert_test_database('$DATABASE_URL'); assert_test_database('$TEST_DATABASE_URL'); print('Safety check passed: Target database verified ending in _test')"
+
+      - name: Run Alembic migrations against isolated test database
+        working-directory: backend
+        run: |
+          alembic upgrade head
+
+      - name: Run dedicated security regression test suite
+        working-directory: backend
+        run: |
+          pytest tests/test_auth_wp2.py tests/test_auth_wp4.py tests/test_rate_limit_wp5.py tests/test_refresh_token_wp6.py tests/test_rbac_and_schemas.py -v --tb=short
+
   frontend-quality:
-    name: Frontend Lint & Production Build
+    name: Frontend Quality & Production Build
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Set up Node.js 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
         with:
           node-version: 20
           cache: "npm"
@@ -102,4 +180,3 @@ jobs:
       - name: Run production build
         working-directory: frontend
         run: npm run build
-

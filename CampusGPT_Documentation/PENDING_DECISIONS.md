@@ -102,17 +102,11 @@ Detail for every open decision. The one-page register is `DECISION_REGISTER.md`;
 
 ### PD-08 — Backend linter for CI
 
-- **Status:** PENDING
+- **Status:** APPROVED (in WP10)
 - **Question:** Which backend linter should CI use (none is known to exist)?
-- **Why it matters:** The master instructions require backend linting in CI.
-- **Options:** Ruff / flake8 / none
-- **Existing documented default (provisional/temporary):** Ruff (single fast tool)
-- **Recommended direction:** Ruff
+- **Resolution:** Ruff approved by owner as dev-only linter. Added to `backend/requirements-dev.txt` and configured via `backend/ruff.toml`.
 - **Dependencies:** WP10
-- **Implementation that is blocked:** WP10 lint step only
-- **What must happen before approval:** Owner approves one dev-only tool
-- **Risks:** Adds a dev dependency
-- **Can unrelated work proceed?** Yes (lint step can follow later)
+- **Implementation:** Integrated into `.github/workflows/ci.yml` under `Backend Verification & Drift Check` job.
 
 ### PD-09 — Document formats and delivery order
 
