@@ -23,3 +23,4 @@ def test_guard_refuses_non_test_databases():
             assert_test_database(url)
         assert "CRITICAL SAFETY VIOLATION" in str(exc_info.value)
         assert "MUST end with '_test'" in str(exc_info.value)
+

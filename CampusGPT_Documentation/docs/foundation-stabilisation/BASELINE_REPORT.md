@@ -148,3 +148,4 @@ tests/test_database_guard.py::test_guard_refuses_non_test_databases PASSED [100%
 * [x] Elevated accounts audited (`admin@campusgpt.dev` only).
 * [x] Characterization suite green with 3 strict xfails.
 * [ ] **Owner Approval:** Owner to review elevated account list, confirm backup, and approve proceeding to **WP1 (Alembic Model Registration & pgvector Extension)**.
+
