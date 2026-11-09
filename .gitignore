@@ -13,4 +13,7 @@ dist/
 .DS_Store
 
 # Ignore the Prototype folder
-Prototype/
+ui-prototype/
+
+# Ignore the Prompt folder
+CampusGPT_Documentation/docs/prompts/
