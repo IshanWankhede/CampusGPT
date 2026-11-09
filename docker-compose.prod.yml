@@ -1,0 +1,44 @@
+# Production Compose Configuration (invoke with: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d)
+#
+# Security Hardening:
+# - Zero host port exposure for database (campusgpt_db) or backend API
+# - Only Nginx (frontend) publishes external ports 80/443
+# - No source code bind mounts (immutable built container images)
+# - Fail-fast secret validation: startup aborts immediately if required production variables are missing
+# - Always-restart policies for production daemon resilience
+
+services:
+  campusgpt_db:
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER must be set in production}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in production}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB must be set in production}
+
+  migrate:
+    restart: "no"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set in production}
+      ENV: production
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY must be set in production}
+
+  backend:
+    restart: always
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set in production}
+      ENV: production
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY must be set in production}
+      CORS_ORIGINS: ${CORS_ORIGINS:?CORS_ORIGINS must be set in production}
+      FRONTEND_URL: ${FRONTEND_URL:?FRONTEND_URL must be set in production}
+      RESEND_API_KEY: ${RESEND_API_KEY:?RESEND_API_KEY must be set in production}
+      EMAIL_FROM: ${EMAIL_FROM:?EMAIL_FROM must be set in production}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-15}
+      REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-7}
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+
+  frontend:
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+

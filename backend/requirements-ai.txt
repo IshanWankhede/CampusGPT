@@ -1,0 +1,29 @@
+# CampusGPT — Heavy AI / ML Dependencies
+# ─────────────────────────────────────────────────────────────────────────────
+# Reserved for Stage 2 RAG Ingestion & Inference (P14).
+# Verified unimported in Stage 0 core authentication & API layers.
+# Install separately during RAG implementation phase or dedicated AI worker builds.
+# ─────────────────────────────────────────────────────────────────────────────
+filelock==3.32.3
+fsspec==2026.7.0
+hf-xet==1.6.0
+huggingface_hub==1.28.0
+joblib==1.5.3
+mpmath==1.3.0
+narwhals==2.25.0
+networkx==3.6.1
+numpy==2.4.6
+pymupdf==1.28.2
+regex==2026.7.19
+safetensors==0.8.0
+scikit-learn==1.9.0
+scipy==1.17.1
+sentence-transformers==6.0.0
+sympy==1.14.0
+threadpoolctl==3.6.0
+tokenizers==0.22.2
+torch==2.13.0
+tqdm==4.70.0
+transformers==5.15.1
+websockets==17.0.1
+

@@ -1,21 +1,38 @@
 services:
   campusgpt_db:
     image: pgvector/pgvector:pg16
-    restart: always
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: campusgpt
-      POSTGRES_PASSWORD: campusgpt_dev
-      POSTGRES_DB: campusgpt
-    ports:
-      - "5433:5432"
+      POSTGRES_USER: ${POSTGRES_USER:-campusgpt}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-campusgpt_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-campusgpt}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U campusgpt -d campusgpt" ]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-campusgpt} -d ${POSTGRES_DB:-campusgpt}"]
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - campusgpt_network
 
+  # One-shot migration runner: applies Alembic migrations and exits cleanly
+  migrate:
+    build:
+      context: ./backend
+    restart: "no"
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://campusgpt:campusgpt_dev@campusgpt_db:5432/campusgpt}
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      campusgpt_db:
+        condition: service_healthy
+    networks:
+      - campusgpt_network
+
+  # Core API service: never runs migrations automatically on launch
   backend:
     build:
       context: ./backend
@@ -23,41 +40,34 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      DATABASE_URL: postgresql+psycopg2://campusgpt:campusgpt_dev@campusgpt_db:5432/campusgpt
-    volumes:
-      - ./backend/app:/app/app
-      - ./backend/alembic:/app/alembic
-      - ./backend/alembic.ini:/app/alembic.ini
-      - ./backend/.env:/app/.env
-    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://campusgpt:campusgpt_dev@campusgpt_db:5432/campusgpt}
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
     depends_on:
       campusgpt_db:
         condition: service_healthy
-    ports:
-      - "8000:8000"
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
-      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" ]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - campusgpt_network
 
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.dev
     restart: unless-stopped
-    environment:
-      - VITE_PROXY_TARGET=http://backend:8000
-      - CHOKIDAR_USEPOLLING=true
-      - WATCHPACK_POLLING=true
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
     depends_on:
       backend:
         condition: service_healthy
-    ports:
-      - "5173:5173"
+    networks:
+      - campusgpt_network
 
 volumes:
   pgdata:
+
+networks:
+  campusgpt_network:
+    driver: bridge

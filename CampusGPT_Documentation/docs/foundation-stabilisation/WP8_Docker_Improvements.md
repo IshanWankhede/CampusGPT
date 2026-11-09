@@ -1,7 +1,15 @@
 # WP8 — Docker and Deployment Improvements
 
 **Stage 0 foundation work package.** Position in the mandatory order: Step 14 (see `Foundation_Execution_Order.md`).
-**Implementation status:** NOT STARTED. Everything below is a plan unless marked otherwise. Schema objects named here are **PROPOSED**; migration revision numbers are **illustrative** — read the real Alembic head first.
+**Implementation status:** IMPLEMENTED (Level 5 Tested).
+- Base Compose (`docker-compose.yml`) + dev override (`docker-compose.override.yml`) + production overlay (`docker-compose.prod.yml`).
+- One-shot `migrate` service (`restart: "no"`); backend depends on `service_completed_successfully`; migrations removed from API command and Dockerfile `CMD`.
+- Backend image executes as non-root user `appuser` (UID 10001 / GID 10001).
+- Unused heavy AI packages segregated into `backend/requirements-ai.txt`; CPU torch install step removed.
+- Production environment variable fail-fast validation configured via `${VAR:?error}`.
+- Nginx reverse proxy hardened with security headers (`X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`), WebSocket proxy upgrade support (`$connection_upgrade`) on `/api/`, and unbuffered API streaming.
+- Production migration procedure: DB backup first, explicit one-shot migration run, verify, start API. Downgrades are never automated in production; recovery relies on DB backup restore.
+- Production HTTPS and TLS termination pending hosting and domain decision (PD-17). Certbot / reverse proxy TLS termination specifications documented.
 
 > **Provenance — read before trusting any "existing repository" statement.** Statements about the existing CampusGPT repository come from a read-only audit of an **older snapshot** (`CampusGPT-main.zip`) made earlier in this project. That snapshot is **not** the current live repository, nothing was executed, and no database was touched. All such statements are labelled **PO-RV — Previously observed, re-verification required**. The codebase is the source of truth for what exists; this documentation defines the intended architecture and requirements. Where they disagree, document the discrepancy and request review. Every prompt requires Antigravity to inspect the actual repository before acting; file paths in this package are previously observed paths, not guaranteed ones.
 
