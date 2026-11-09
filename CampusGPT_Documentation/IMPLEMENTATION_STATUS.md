@@ -12,7 +12,7 @@ Update after every prompt. Never mark a feature complete because its UI exists.
 |---|---|---|---|
 | Authentication backend (JWT, Google, OTP, reset) | Implemented with defects (C1–C3, H1–H4 confirmed) | 3–4 | Confirmed via REPO_AUDIT_2026-11-09.md; Stage 0 remediation required |
 | Landing / sign-in / sign-up pages | Implemented | 2 | Verified on live code; preserve |
-| WP0 baseline, backup, harness | Not started | — | |
+| WP0 baseline, backup, harness | Implemented | 5 (Tested) | Tag pre-foundation-baseline, backup verified, characterization suite passing (7 passed, 3 strict xfail) |
 | WP1 Alembic registration + pgvector migration | Not started | — | |
 | WP2 critical auth fixes + faculty approval | Not started | — | |
 | WP3 production configuration | Not started | — | |
