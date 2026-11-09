@@ -10,8 +10,8 @@ Update after every prompt. Never mark a feature complete because its UI exists.
 ## Stage 0 — Foundation
 | Item | State | Level | Notes |
 |---|---|---|---|
-| Authentication backend (JWT, Google, OTP, reset) | Previously observed as implemented with defects (PO-RV) | 3–4 (unverified) | previously observed C1–C3, H1–H4; confirm each on the live code first |
-| Landing / sign-in / sign-up pages | Previously observed as implemented (PO-RV) | 2 (unverified) | preserve |
+| Authentication backend (JWT, Google, OTP, reset) | Implemented with defects (C1–C3, H1–H4 confirmed) | 3–4 | Confirmed via REPO_AUDIT_2026-11-09.md; Stage 0 remediation required |
+| Landing / sign-in / sign-up pages | Implemented | 2 | Verified on live code; preserve |
 | WP0 baseline, backup, harness | Not started | — | |
 | WP1 Alembic registration + pgvector migration | Not started | — | |
 | WP2 critical auth fixes + faculty approval | Not started | — | |
@@ -29,7 +29,7 @@ Update after every prompt. Never mark a feature complete because its UI exists.
 ## Stage 1 onward
 | Phase | Feature | State | Level |
 |---|---|---|---|
-| P01 | Project audit (re-run on HEAD) | Requires verification | — |
+| P01 | Project audit (re-run on HEAD) | Implemented | — | Audit report completed: REPO_AUDIT_2026-11-09.md |
 | P02 | Architecture and database audit | Requires verification | — |
 | P03 | UI reference audit | Not started | — |
 | P04 | Design system and application shell | Not started | — |
