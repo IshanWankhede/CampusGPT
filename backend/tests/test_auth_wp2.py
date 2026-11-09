@@ -536,7 +536,9 @@ def test_google_login_rejects_unverified_local_account(client: TestClient, db_se
     db_session.add(user)
     db_session.commit()
 
-    state = service.create_oauth_state(CollegeName.VIT)
+    test_nonce = "test_nonce_unverified_1234567890"
+    client.cookies.set("oauth_binding_nonce", test_nonce)
+    state = service.create_oauth_state(CollegeName.VIT, nonce=test_nonce)
 
     mock_client_instance = MagicMock()
     mock_token_res = MagicMock(status_code=200, is_success=True)
@@ -581,7 +583,9 @@ def test_google_login_links_verified_local_account(client: TestClient, db_sessio
     db_session.add(user)
     db_session.commit()
 
-    state = service.create_oauth_state(CollegeName.VIT)
+    test_nonce = "test_nonce_unverified_1234567890"
+    client.cookies.set("oauth_binding_nonce", test_nonce)
+    state = service.create_oauth_state(CollegeName.VIT, nonce=test_nonce)
 
     mock_client_instance = MagicMock()
     mock_token_res = MagicMock(status_code=200, is_success=True)
@@ -605,7 +609,8 @@ def test_google_login_links_verified_local_account(client: TestClient, db_sessio
         )
         assert res.status_code == 307
         redirect_url = res.headers["location"]
-        assert "/auth/callback?access_token=" in redirect_url
+        assert "/auth/callback?code=" in redirect_url
+        assert "access_token" not in redirect_url
 
     # Check that google_id was linked in the database
     db_session.refresh(user)

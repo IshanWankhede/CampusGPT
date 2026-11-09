@@ -32,21 +32,24 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const urlAccessToken = urlParams.get("access_token");
-    const urlRefreshToken = urlParams.get("refresh_token");
+    const code = urlParams.get("code");
 
-    if (urlAccessToken && urlRefreshToken) {
-      const nextSession = { access_token: urlAccessToken, refresh_token: urlRefreshToken };
-      request("/me", {
-        headers: { Authorization: `Bearer ${urlAccessToken}` },
+    if (code) {
+      // Immediately scrub authorization code from the browser URL bar
+      window.history.replaceState({}, document.title, window.location.pathname);
+
+      request("/google/exchange", {
+        method: "POST",
+        credentials: "include",
+        body: JSON.stringify({ code }),
       })
-        .then((user) => {
-          saveSession({ ...nextSession, user });
-          window.history.replaceState({}, document.title, "/app");
+        .then((tokenData) => {
+          saveSession(tokenData);
           window.location.href = "/app";
         })
-        .catch(() => {
+        .catch((error) => {
           setLoading(false);
+          window.location.href = `/auth?error=${encodeURIComponent(error.message)}`;
         });
       return;
     }

@@ -1,9 +1,10 @@
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import desc, select
+from sqlalchemy import desc, select, update
 from sqlalchemy.orm import Session
 
+from app.models.login_code import LoginCode
 from app.models.user import AuthProvider, CollegeName, User, UserRole
 from app.models.otp_verification import OtpPurpose, OtpVerification
 from app.models.role_request import RoleRequest, RoleRequestStatus
@@ -187,4 +188,51 @@ def get_pending_role_request_for_user(
         .order_by(desc(RoleRequest.created_at))
         .limit(1)
     )
+
+
+def create_login_code(
+    db: Session,
+    *,
+    user_id: uuid.UUID,
+    code_hash: str,
+    nonce_hash: str,
+    expires_at: datetime,
+) -> LoginCode:
+    record = LoginCode(
+        user_id=user_id,
+        code_hash=code_hash,
+        nonce_hash=nonce_hash,
+        expires_at=expires_at,
+    )
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+    return record
+
+
+def consume_login_code(
+    db: Session,
+    *,
+    code_hash: str,
+    nonce_hash: str,
+) -> User | None:
+    now = datetime.now(timezone.utc)
+    stmt = (
+        update(LoginCode)
+        .where(
+            LoginCode.code_hash == code_hash,
+            LoginCode.nonce_hash == nonce_hash,
+            LoginCode.used_at.is_(None),
+            LoginCode.expires_at > now,
+        )
+        .values(used_at=now)
+        .returning(LoginCode.user_id)
+    )
+    user_id = db.scalar(stmt)
+    if user_id is None:
+        db.rollback()
+        return None
+    db.commit()
+    return db.get(User, user_id)
+
 

@@ -176,7 +176,9 @@ def test_forgot_and_reset_password(client: TestClient):
 def test_google_oauth_callback_new_and_existing_user(client: TestClient):
     """Characterization test: Google OAuth callback code exchange with mocked Google API."""
     google_email = "scholar@pict.edu"
-    state = service.create_oauth_state(CollegeName.PICT)
+    test_nonce = "test_nonce_characterization_1234567890123456"
+    client.cookies.set("oauth_binding_nonce", test_nonce)
+    state = service.create_oauth_state(CollegeName.PICT, nonce=test_nonce)
 
     mock_client_instance = MagicMock()
     mock_token_res = MagicMock(status_code=200, is_success=True)
@@ -197,22 +199,39 @@ def test_google_oauth_callback_new_and_existing_user(client: TestClient):
     mock_client_instance.__exit__.return_value = None
 
     with patch("app.auth.router.httpx.Client", return_value=mock_client_instance):
-        # Callback creates new Google user
+        # Callback creates new Google user - redirects with code, NOT tokens
         res_new = client.get(
             f"/api/v1/auth/google/callback?code=mock_code&state={state}",
             follow_redirects=False,
         )
         assert res_new.status_code == 307
         redirect_url = res_new.headers["location"]
-        assert "/auth/callback?access_token=" in redirect_url
-        assert "refresh_token=" in redirect_url
+        assert "/auth/callback?code=" in redirect_url
+        assert "access_token" not in redirect_url
+        assert "refresh_token" not in redirect_url
+
+        # Exchange code for tokens
+        code = redirect_url.split("code=")[1]
+        exchange_res = client.post(
+            "/api/v1/auth/google/exchange",
+            json={"code": code},
+            headers={"Origin": "http://localhost:5173"},
+        )
+        assert exchange_res.status_code == 200
+        token_data = exchange_res.json()
+        assert "access_token" in token_data
+        assert "refresh_token" in token_data
 
         # Callback for existing Google user
+        # Re-set cookie since exchange cleared it
+        client.cookies.set("oauth_binding_nonce", test_nonce)
         res_existing = client.get(
             f"/api/v1/auth/google/callback?code=mock_code&state={state}",
             follow_redirects=False,
         )
         assert res_existing.status_code == 307
+        assert "/auth/callback?code=" in res_existing.headers["location"]
+        assert "access_token" not in res_existing.headers["location"]
 
 
 # ==============================================================================
@@ -226,7 +245,9 @@ def test_c1_google_user_null_password_bypass(client: TestClient):
     A secure system MUST reject local password login for null-password accounts with 401.
     """
     google_email = "c1.victim@vit.edu"
-    state = service.create_oauth_state(CollegeName.VIT)
+    test_nonce = "test_nonce_c1_1234567890123456"
+    client.cookies.set("oauth_binding_nonce", test_nonce)
+    state = service.create_oauth_state(CollegeName.VIT, nonce=test_nonce)
 
     mock_client_instance = MagicMock()
     mock_token_res = MagicMock(status_code=200, is_success=True)

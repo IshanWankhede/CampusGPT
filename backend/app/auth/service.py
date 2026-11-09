@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+import hmac
 import secrets
 import uuid
 
@@ -50,11 +51,11 @@ def derive_college_from_email(email: str) -> CollegeName:
     return college
 
 
-def create_oauth_state(college: CollegeName) -> str:
+def create_oauth_state(college: CollegeName, nonce: str | None = None) -> str:
     now = datetime.now(timezone.utc)
     payload = {
         "college": college.value,
-        "nonce": secrets.token_hex(16),
+        "nonce": nonce or secrets.token_urlsafe(32),
         "type": "oauth_state",
         "iat": now,
         "exp": now + timedelta(minutes=10),
@@ -62,16 +63,30 @@ def create_oauth_state(college: CollegeName) -> str:
     return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
 
-def verify_oauth_state(state_token: str) -> CollegeName:
+def verify_oauth_state(state_token: str, expected_nonce: str | None = None) -> CollegeName:
     try:
         payload = jwt.decode(
             state_token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
         )
         if payload.get("type") != "oauth_state" or not payload.get("college"):
             raise ValueError("Invalid OAuth state type")
+        if expected_nonce is not None:
+            actual_nonce = str(payload.get("nonce", ""))
+            if not hmac.compare_digest(actual_nonce, expected_nonce):
+                raise ValueError("OAuth state validation failed: nonce mismatch")
         return CollegeName(payload["college"])
     except Exception as exc:
         raise ValueError("Invalid or expired OAuth state") from exc
+
+
+def get_oauth_state_nonce(state_token: str) -> str | None:
+    try:
+        payload = jwt.decode(
+            state_token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
+        )
+        return payload.get("nonce")
+    except Exception:
+        return None
 
 
 def hash_password(password: str) -> str:

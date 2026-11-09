@@ -15,6 +15,19 @@ def test_metadata_contains_all_models():
     assert "users" in tables, "Table 'users' is missing from Base.metadata"
     assert "otp_verifications" in tables, "Table 'otp_verifications' is missing from Base.metadata"
     assert "role_requests" in tables, "Table 'role_requests' is missing from Base.metadata"
+    assert "login_codes" in tables, "Table 'login_codes' is missing from Base.metadata"
+
+    login_code_cols = {c.name for c in tables["login_codes"].columns}
+    expected_login_code_cols = {
+        "id",
+        "user_id",
+        "code_hash",
+        "nonce_hash",
+        "expires_at",
+        "used_at",
+        "created_at",
+    }
+    assert expected_login_code_cols.issubset(login_code_cols), f"Missing login_codes columns: {expected_login_code_cols - login_code_cols}"
 
     user_cols = {c.name for c in tables["users"].columns}
     expected_user_cols = {

@@ -90,6 +90,10 @@ class UserResponse(BaseModel):
     pending_role_request: RoleRequestResponse | None = None
 
 
+class GoogleExchangeRequest(BaseModel):
+    code: str = Field(min_length=1, max_length=256)
+
+
 class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str

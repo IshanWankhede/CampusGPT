@@ -1,8 +1,11 @@
+from datetime import datetime, timedelta, timezone
+import hashlib
 import logging
+import secrets
 import urllib.parse
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
 import httpx
 from jose import JWTError
@@ -12,6 +15,7 @@ from app.auth import service
 from app.auth.schemas import (
     AccessTokenResponse,
     ForgotPasswordRequest,
+    GoogleExchangeRequest,
     LoginRequest,
     RefreshRequest,
     RegisterRequest,
@@ -99,7 +103,8 @@ def google_login(college: str | None = None) -> RedirectResponse:
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid college selected.") from None
 
-    state = service.create_oauth_state(college_enum)
+    raw_nonce = secrets.token_urlsafe(32)
+    state = service.create_oauth_state(college_enum, nonce=raw_nonce)
     params = {
         "client_id": settings.GOOGLE_CLIENT_ID,
         "redirect_uri": settings.GOOGLE_REDIRECT_URI,
@@ -109,29 +114,54 @@ def google_login(college: str | None = None) -> RedirectResponse:
         "prompt": "select_account",
     }
     google_auth_url = f"https://accounts.google.com/o/oauth2/v2/auth?{urllib.parse.urlencode(params)}"
-    return RedirectResponse(url=google_auth_url)
+    response = RedirectResponse(url=google_auth_url)
+    response.set_cookie(
+        key="oauth_binding_nonce",
+        value=raw_nonce,
+        httponly=True,
+        samesite="lax",
+        secure=(settings.ENV != "development"),
+        path="/api/v1/auth",
+        max_age=600,
+    )
+    return response
 
 
 @router.get("/google/callback")
 def google_callback(
+    request: Request,
     db: DbSession,
     code: str | None = None,
     state: str | None = None,
     error: str | None = None,
 ) -> RedirectResponse:
-    def redirect_error(msg: str) -> RedirectResponse:
-        return RedirectResponse(
+    def redirect_error(msg: str, clear_cookie: bool = False) -> RedirectResponse:
+        res = RedirectResponse(
             url=f"{settings.FRONTEND_URL}/auth?error={urllib.parse.quote(msg)}"
         )
+        res.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+        res.headers["Pragma"] = "no-cache"
+        res.headers["Referrer-Policy"] = "no-referrer"
+        if clear_cookie:
+            res.delete_cookie(key="oauth_binding_nonce", path="/api/v1/auth")
+        return res
 
     if error or not code or not state:
-        return redirect_error("OAuth authentication cancelled or failed.")
+        # Untrusted/malformed callback: do NOT clear cookie
+        return redirect_error("OAuth authentication cancelled or failed.", clear_cookie=False)
+
+    cookie_nonce = request.cookies.get("oauth_binding_nonce")
+    if not cookie_nonce:
+        return redirect_error("OAuth state validation failed.", clear_cookie=False)
 
     try:
-        selected_college = service.verify_oauth_state(state)
-    except ValueError as exc:
-        return redirect_error(str(exc))
+        selected_college = service.verify_oauth_state(state, expected_nonce=cookie_nonce)
+    except ValueError:
+        # Untrusted/tampered state: do NOT clear cookie
+        return redirect_error("OAuth state validation failed.", clear_cookie=False)
 
+    # State signature and nonce matched the cookie!
+    # Subsequent terminal failures are genuine failures of this flow.
     try:
         with httpx.Client(timeout=10.0) as client:
             token_res = client.post(
@@ -145,7 +175,7 @@ def google_callback(
                 },
             )
             if not token_res.is_success:
-                return redirect_error("Failed to exchange Google OAuth authorization code.")
+                return redirect_error("Failed to exchange Google OAuth authorization code.", clear_cookie=True)
             token_data = token_res.json()
             access_token = token_data.get("access_token")
 
@@ -154,10 +184,10 @@ def google_callback(
                 headers={"Authorization": f"Bearer {access_token}"},
             )
             if not userinfo_res.is_success:
-                return redirect_error("Failed to fetch Google user profile.")
+                return redirect_error("Failed to fetch Google user profile.", clear_cookie=True)
             userinfo = userinfo_res.json()
     except Exception:
-        return redirect_error("Unable to connect to Google OAuth service.")
+        return redirect_error("Unable to connect to Google OAuth service.", clear_cookie=True)
 
     email = userinfo.get("email", "").strip().lower()
     email_verified = userinfo.get("email_verified", False)
@@ -166,33 +196,31 @@ def google_callback(
     profile_picture = userinfo.get("picture")
 
     if not email or not email_verified:
-        return redirect_error("Google email is not verified.")
+        return redirect_error("Google email is not verified.", clear_cookie=True)
 
     try:
         derived_college = service.derive_college_from_email(email)
     except ValueError as exc:
-        return redirect_error(str(exc))
+        return redirect_error(str(exc), clear_cookie=True)
 
     if selected_college != derived_college:
-        return redirect_error("The selected college does not match your Google email domain.")
+        return redirect_error("The selected college does not match your Google email domain.", clear_cookie=True)
 
     user = service.repository.get_user_by_email(db, email)
     if user is not None:
-        # Prevent pre-registration takeover: local account must already be email verified
         if not user.is_email_verified:
-            return redirect_error("Cannot link Google account to an unverified local account.")
+            return redirect_error("Cannot link Google account to an unverified local account.", clear_cookie=True)
 
         if user.college and user.college != derived_college:
-            return redirect_error("The selected college does not match your registered institution.")
+            return redirect_error("The selected college does not match your registered institution.", clear_cookie=True)
         if not user.college:
             user.college = derived_college
 
-        # Verify Google ID linking
         if not user.google_id:
             logger.info("Linking Google account %s to verified user %s", google_sub, user.email)
             user.google_id = google_sub
         elif user.google_id != google_sub:
-            return redirect_error("Google identity mismatch for this account.")
+            return redirect_error("Google identity mismatch for this account.", clear_cookie=True)
 
         if not user.profile_picture and profile_picture:
             user.profile_picture = profile_picture
@@ -208,11 +236,97 @@ def google_callback(
             role=UserRole.STUDENT,
         )
 
-    access_token = service.create_access_token(user)
-    refresh_token = service.create_refresh_token(user)
+    # Generate single-use opaque authorization code
+    raw_code = secrets.token_urlsafe(32)
+    code_hash = hashlib.sha256(raw_code.encode("utf-8")).hexdigest()
+    nonce_hash = hashlib.sha256(cookie_nonce.encode("utf-8")).hexdigest()
+    expires_at = datetime.now(timezone.utc) + timedelta(seconds=60)
 
-    target_url = f"{settings.FRONTEND_URL}/auth/callback?access_token={access_token}&refresh_token={refresh_token}"
-    return RedirectResponse(url=target_url)
+    service.repository.create_login_code(
+        db,
+        user_id=user.id,
+        code_hash=code_hash,
+        nonce_hash=nonce_hash,
+        expires_at=expires_at,
+    )
+
+    # Redirect with code only; retain oauth_binding_nonce cookie for exchange
+    target_url = f"{settings.FRONTEND_URL}/auth/callback?code={raw_code}"
+    res = RedirectResponse(url=target_url)
+    res.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+    res.headers["Pragma"] = "no-cache"
+    res.headers["Referrer-Policy"] = "no-referrer"
+    return res
+
+
+@router.post("/google/exchange", response_model=TokenResponse)
+def google_exchange(
+    request: Request,
+    body: GoogleExchangeRequest,
+    response: Response,
+    db: DbSession,
+) -> TokenResponse:
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+
+    # 1. Validate Origin header against configured trusted frontend origins
+    trusted_origins = {orig.strip() for orig in settings.CORS_ORIGINS.split(",") if orig.strip()}
+    if settings.FRONTEND_URL:
+        trusted_origins.add(settings.FRONTEND_URL.strip())
+
+    origin = request.headers.get("origin")
+    if not origin or origin not in trusted_origins:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: untrusted or missing request origin",
+        )
+
+    # 2. Validate Content-Type
+    content_type = request.headers.get("content-type", "")
+    if not content_type.startswith("application/json"):
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="Unsupported Media Type: application/json required",
+        )
+
+    # 3. Read cookie nonce
+    cookie_nonce = request.cookies.get("oauth_binding_nonce")
+    if not cookie_nonce:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired authorization code",
+        )
+
+    # 4. Compute hashes
+    code_hash = hashlib.sha256(body.code.encode("utf-8")).hexdigest()
+    nonce_hash = hashlib.sha256(cookie_nonce.encode("utf-8")).hexdigest()
+
+    # 5. Atomic PostgreSQL consumption
+    user = service.repository.consume_login_code(
+        db,
+        code_hash=code_hash,
+        nonce_hash=nonce_hash,
+    )
+    if user is None or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired authorization code",
+        )
+
+    # 6. Clear cookie on success
+    response.delete_cookie(key="oauth_binding_nonce", path="/api/v1/auth")
+
+    # 7. Issue tokens
+    user_resp = UserResponse.model_validate(user)
+    pending_req = service.repository.get_pending_role_request_for_user(db, user.id)
+    if pending_req:
+        user_resp.pending_role_request = RoleRequestResponse.model_validate(pending_req)
+
+    return TokenResponse(
+        access_token=service.create_access_token(user),
+        refresh_token=service.create_refresh_token(user),
+        user=user_resp,
+    )
 
 
 @router.post("/refresh", response_model=AccessTokenResponse)
