@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, String, Text, Uuid, func
+from sqlalchemy import Boolean, DateTime, Enum, Index, String, Text, UniqueConstraint, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import Base
@@ -27,9 +27,14 @@ class AuthProvider(str, enum.Enum):
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = (
+        UniqueConstraint("email"),
+        Index("ix_users_email", "email"),
+        UniqueConstraint("google_id", name="uq_users_google_id"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    email: Mapped[str] = mapped_column(String(255), nullable=False)
     hashed_password: Mapped[str | None] = mapped_column(String(255), nullable=True)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[UserRole] = mapped_column(
@@ -47,7 +52,7 @@ class User(Base):
         default=AuthProvider.LOCAL,
         server_default="LOCAL",
     )
-    google_id: Mapped[str | None] = mapped_column(String(255), nullable=True, unique=True)
+    google_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     profile_picture: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
     is_email_verified: Mapped[bool] = mapped_column(
