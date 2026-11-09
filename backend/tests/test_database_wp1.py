@@ -18,6 +18,22 @@ def test_metadata_contains_all_models():
     assert "login_codes" in tables, "Table 'login_codes' is missing from Base.metadata"
     assert "auth_attempts" in tables, "Table 'auth_attempts' is missing from Base.metadata"
     assert "refresh_tokens" in tables, "Table 'refresh_tokens' is missing from Base.metadata"
+    assert "audit_logs" in tables, "Table 'audit_logs' is missing from Base.metadata"
+
+    audit_log_cols = {c.name for c in tables["audit_logs"].columns}
+    expected_audit_log_cols = {
+        "id",
+        "actor_id",
+        "action",
+        "target_type",
+        "target_id",
+        "outcome",
+        "ip_hash",
+        "request_id",
+        "metadata",
+        "created_at",
+    }
+    assert expected_audit_log_cols.issubset(audit_log_cols), f"Missing audit_logs columns: {expected_audit_log_cols - audit_log_cols}"
 
     refresh_token_cols = {c.name for c in tables["refresh_tokens"].columns}
     expected_refresh_token_cols = {

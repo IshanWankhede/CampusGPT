@@ -1,9 +1,9 @@
 """Alembic Migration DAG & Continuity Tests.
 
 Verifies using Alembic's ScriptDirectory that:
-1. Exactly one head exists and it is '0011'.
+1. Exactly one head exists and it is '0012'.
 2. No branching exists in the migration history.
-3. Continuity from '0011' down to '0001' is complete and unbroken.
+3. Continuity from '0012' down to '0001' is complete and unbroken.
 4. Every revision is resolvable and has consistent down_revision pointers.
 """
 
@@ -28,10 +28,10 @@ def alembic_script_directory() -> ScriptDirectory:
 
 
 def test_migration_dag_single_head(alembic_script_directory: ScriptDirectory):
-    """Verifies that there is exactly one head in the migration graph, and it is 0011."""
+    """Verifies that there is exactly one head in the migration graph, and it is 0012."""
     heads = alembic_script_directory.get_heads()
     assert len(heads) == 1, f"Expected exactly 1 migration head, found {len(heads)}: {heads}"
-    assert heads[0] == "0011", f"Expected migration head to be '0011', got '{heads[0]}'"
+    assert heads[0] == "0012", f"Expected migration head to be '0012', got '{heads[0]}'"
 
 
 def test_migration_dag_single_base(alembic_script_directory: ScriptDirectory):
@@ -42,11 +42,12 @@ def test_migration_dag_single_base(alembic_script_directory: ScriptDirectory):
 
 
 def test_migration_dag_unbroken_continuity(alembic_script_directory: ScriptDirectory):
-    """Verifies complete, linear continuity from head ('0011') to base ('0001')."""
-    revisions = list(alembic_script_directory.walk_revisions(base="base", head="0011"))
+    """Verifies complete, linear continuity from head ('0012') to base ('0001')."""
+    revisions = list(alembic_script_directory.walk_revisions(base="base", head="0012"))
     rev_ids = [r.revision for r in revisions]
 
     expected_revisions = [
+        "0012",
         "0011",
         "0010",
         "0009",
@@ -80,4 +81,5 @@ def test_migration_dag_no_branches_or_merge_points(alembic_script_directory: Scr
     for rev in alembic_script_directory.walk_revisions():
         assert not rev.branch_labels, f"Revision '{rev.revision}' has unexpected branch labels: {rev.branch_labels}"
         assert not rev.dependencies, f"Revision '{rev.revision}' has unexpected multi-dependency: {rev.dependencies}"
+
 

@@ -11,6 +11,7 @@ import httpx
 from jose import JWTError
 from sqlalchemy.orm import Session
 
+from app.audit.service import record_audit_event
 from app.auth import rate_limiter, service
 from app.auth.schemas import (
     AccessTokenResponse,
@@ -40,13 +41,36 @@ DbSession = Annotated[Session, Depends(get_db)]
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def register(request: RegisterRequest, db: DbSession) -> UserResponse:
+def register(request: RegisterRequest, db: DbSession, http_request: Request = None) -> UserResponse:
     try:
         user = service.register_user(db, request)
         user_resp = UserResponse.model_validate(user)
         pending_req = service.repository.get_pending_role_request_for_user(db, user.id)
         if pending_req:
             user_resp.pending_role_request = RoleRequestResponse.model_validate(pending_req)
+
+        record_audit_event(
+            action="AUTH_REGISTER",
+            outcome="SUCCESS",
+            actor_id=user.id,
+            target_type="USER",
+            target_id=user.id,
+            request=http_request,
+            metadata={"email": user.email, "role": user.role.value},
+            db=db,
+        )
+        if pending_req:
+            record_audit_event(
+                action="ROLE_REQUEST_CREATED",
+                outcome="SUCCESS",
+                actor_id=user.id,
+                target_type="ROLE_REQUEST",
+                target_id=pending_req.id,
+                request=http_request,
+                metadata={"applicant_email": user.email, "requested_role": pending_req.requested_role.value},
+                db=db,
+            )
+
         return user_resp
     except ValueError as exc:
         message = str(exc)
@@ -70,10 +94,25 @@ def login(request: LoginRequest, db: DbSession, http_request: Request) -> TokenR
         user = service.authenticate_user(db, request.email, request.password, request.college)
     except ValueError as exc:
         rate_limiter.record_attempt(db, http_request, "login", identifier=request.email, success=False)
+        record_audit_event(
+            action="AUTH_LOGIN",
+            outcome="FAILURE",
+            request=http_request,
+            metadata={"email": request.email, "reason": "INVALID_CREDENTIALS"},
+            db=db,
+        )
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc)) from exc
 
     if user is None or not user.is_active:
         rate_limiter.record_attempt(db, http_request, "login", identifier=request.email, success=False)
+        record_audit_event(
+            action="AUTH_LOGIN",
+            outcome="FAILURE",
+            actor_id=user.id if user else None,
+            request=http_request,
+            metadata={"email": request.email, "reason": "UNVERIFIED_OR_INACTIVE" if user else "INVALID_CREDENTIALS"},
+            db=db,
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
@@ -81,9 +120,27 @@ def login(request: LoginRequest, db: DbSession, http_request: Request) -> TokenR
         )
     if not user.is_email_verified:
         rate_limiter.record_attempt(db, http_request, "login", identifier=request.email, success=False)
+        record_audit_event(
+            action="AUTH_LOGIN",
+            outcome="FAILURE",
+            actor_id=user.id,
+            request=http_request,
+            metadata={"email": request.email, "reason": "UNVERIFIED_EMAIL"},
+            db=db,
+        )
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Please verify your email before signing in")
 
     rate_limiter.record_attempt(db, http_request, "login", identifier=request.email, success=True)
+    record_audit_event(
+        action="AUTH_LOGIN",
+        outcome="SUCCESS",
+        actor_id=user.id,
+        target_type="USER",
+        target_id=user.id,
+        request=http_request,
+        metadata={"email": user.email, "role": user.role.value},
+        db=db,
+    )
     user_resp = UserResponse.model_validate(user)
     pending_req = service.repository.get_pending_role_request_for_user(db, user.id)
     if pending_req:
@@ -388,6 +445,17 @@ def refresh(
     if pending_req:
         user_resp.pending_role_request = RoleRequestResponse.model_validate(pending_req)
 
+    record_audit_event(
+        action="TOKEN_REFRESH",
+        outcome="SUCCESS",
+        actor_id=user.id,
+        target_type="USER",
+        target_id=user.id,
+        request=http_request,
+        metadata={"email": user.email},
+        db=db,
+    )
+
     return TokenResponse(
         access_token=new_access_token,
         refresh_token=new_refresh_token,
@@ -401,10 +469,19 @@ def logout(
     body: LogoutRequest | None = None,
     current_user: Annotated[User | None, Depends(get_current_user_optional)] = None,
 ) -> Response:
+    scope = "FAMILY" if body and body.refresh_token else "ALL"
     if body and body.refresh_token:
         service.revoke_token_family_by_token(db, body.refresh_token)
     elif current_user:
         service.repository.revoke_all_user_refresh_tokens(db, current_user.id)
+
+    record_audit_event(
+        action="AUTH_LOGOUT",
+        outcome="SUCCESS",
+        actor_id=current_user.id if current_user else None,
+        metadata={"scope": scope},
+        db=db,
+    )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -414,6 +491,13 @@ def logout_all(
     db: DbSession,
 ) -> Response:
     service.repository.revoke_all_user_refresh_tokens(db, current_user.id)
+    record_audit_event(
+        action="AUTH_LOGOUT_ALL",
+        outcome="SUCCESS",
+        actor_id=current_user.id,
+        metadata={"scope": "ALL"},
+        db=db,
+    )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -477,6 +561,14 @@ def send_otp(request: SendOtpRequest, db: DbSession, http_request: Request) -> d
             db, user, request.purpose, email=request.email, college=request.college
         )
         rate_limiter.record_attempt(db, http_request, "otp_send", identifier=request.email, success=True)
+        record_audit_event(
+            action="OTP_SENT",
+            outcome="SUCCESS",
+            actor_id=user.id if user else None,
+            request=http_request,
+            metadata={"email": request.email, "status": request.purpose.value},
+            db=db,
+        )
     except ValueError as exc:
         code = 429 if "Too many" in str(exc) else 400
         headers = {"Retry-After": "900"} if code == 429 else None
@@ -497,8 +589,24 @@ def verify_otp(request: VerifyOtpRequest, db: DbSession, http_request: Request) 
     try:
         service.verify_otp(db, user, request.otp, request.purpose, email=request.email)
         rate_limiter.record_attempt(db, http_request, "otp_verify", identifier=request.email, success=True)
+        record_audit_event(
+            action="OTP_VERIFIED",
+            outcome="SUCCESS",
+            actor_id=user.id if user else None,
+            request=http_request,
+            metadata={"email": request.email, "status": request.purpose.value},
+            db=db,
+        )
     except ValueError as exc:
         rate_limiter.record_attempt(db, http_request, "otp_verify", identifier=request.email, success=False)
+        record_audit_event(
+            action="OTP_VERIFIED",
+            outcome="FAILURE",
+            actor_id=user.id if user else None,
+            request=http_request,
+            metadata={"email": request.email, "status": request.purpose.value, "reason": "INVALID_OR_EXPIRED"},
+            db=db,
+        )
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if request.purpose.value == "EMAIL_VERIFY" and user is not None:
         user.is_email_verified = True
@@ -531,5 +639,15 @@ def reset_password(request: ResetPasswordRequest, db: DbSession, http_request: R
     service.repository.revoke_all_user_refresh_tokens(db, user.id)
     db.commit()
     rate_limiter.record_attempt(db, http_request, "password_reset", identifier=request.email, success=True)
+    record_audit_event(
+        action="PASSWORD_RESET",
+        outcome="SUCCESS",
+        actor_id=user.id,
+        target_type="USER",
+        target_id=user.id,
+        request=http_request,
+        metadata={"email": user.email},
+        db=db,
+    )
     return {"message": "Password updated"}
 

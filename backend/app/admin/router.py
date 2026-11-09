@@ -5,6 +5,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.audit.service import record_audit_event
 from app.auth import repository
 from app.auth.schemas import RoleRequestResponse, RoleRequestReviewAction
 from app.core.dependencies import require_role
@@ -75,6 +76,19 @@ def approve_role_request(
 
     db.commit()
     db.refresh(role_req)
+    record_audit_event(
+        action="ROLE_REQUEST_APPROVED",
+        outcome="SUCCESS",
+        actor_id=current_admin.id,
+        target_type="ROLE_REQUEST",
+        target_id=role_req.id,
+        metadata={
+            "applicant_email": role_req.applicant_email,
+            "requested_role": role_req.requested_role.value,
+            "target_user_id": role_req.user_id,
+        },
+        db=db,
+    )
     return RoleRequestResponse.model_validate(role_req)
 
 
@@ -119,5 +133,18 @@ def reject_role_request(
 
     db.commit()
     db.refresh(role_req)
+    record_audit_event(
+        action="ROLE_REQUEST_REJECTED",
+        outcome="SUCCESS",
+        actor_id=current_admin.id,
+        target_type="ROLE_REQUEST",
+        target_id=role_req.id,
+        metadata={
+            "applicant_email": role_req.applicant_email,
+            "requested_role": role_req.requested_role.value,
+            "target_user_id": role_req.user_id,
+        },
+        db=db,
+    )
     return RoleRequestResponse.model_validate(role_req)
 

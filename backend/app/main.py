@@ -4,6 +4,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.admin.router import router as admin_router
 from app.auth.router import router as auth_router
 from app.core.config import settings
+from app.core.logging import configure_logging
+from app.core.middleware import CorrelationIdMiddleware
+
+# Configure structured JSON logging with redaction
+configure_logging()
 
 # API documentation is only exposed in development.
 # In staging and production all three endpoints return 404.
@@ -17,6 +22,7 @@ app = FastAPI(
     openapi_url="/openapi.json" if _in_development else None,
 )
 
+app.add_middleware(CorrelationIdMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS.split(","),

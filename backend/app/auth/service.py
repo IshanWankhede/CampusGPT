@@ -8,6 +8,7 @@ from passlib.context import CryptContext
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.audit.service import record_audit_event
 from app.auth import repository
 from app.auth.schemas import RegisterRequest
 from app.core.config import settings
@@ -321,6 +322,18 @@ def rotate_refresh_token(
         else:
             # Malicious reuse: revoke the entire family
             repository.revoke_refresh_token_family(db, token_record.family_id)
+            record_audit_event(
+                action="TOKEN_REUSE_DETECTED",
+                outcome="FAILURE",
+                actor_id=token_record.user_id,
+                target_type="REFRESH_TOKEN",
+                target_id=token_record.id,
+                metadata={
+                    "family_id": token_record.family_id,
+                    "reason": "Compromised refresh token reuse detected",
+                },
+                db=db,
+            )
             raise ValueError("Compromised refresh token reuse detected. All sessions in this family have been terminated.")
 
     if token_record.expires_at <= now:
