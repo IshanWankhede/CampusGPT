@@ -15,7 +15,7 @@ Update after every prompt. Never mark a feature complete because its UI exists.
 | WP0 baseline, backup, harness | Implemented | 5 (Tested) | Tag pre-foundation-baseline, backup verified, characterization suite passing (7 passed, 3 strict xfail) |
 | WP1 Alembic registration + pgvector migration | Implemented | 5 (Tested) | Models registered with Base.metadata, revision 0006 enables pgvector, autogenerate drift check clean (0 drift) |
 | WP2 critical auth fixes + faculty approval | Implemented | 5 (Tested) | Revisions 0007-0008, C1/C2/C3 closed, role request lifecycle & CLI, 31 passing tests |
-| WP3 production configuration | Not started | — | |
+| WP3 production configuration | Implemented | 5 (Tested) | Startup guards G1–G8, PostgreSQL-only enforcement, DB URL parsing/normalization, CORS localhost restriction, docs disabled in non-dev, sanitized /health, 94 tests passing |
 | WP4 OAuth code exchange | Not started | — | |
 | WP5 rate limiting | Not started | — | |
 | WP6 refresh rotation/revocation | Not started | — | |

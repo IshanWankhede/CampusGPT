@@ -8,12 +8,12 @@ from app.models.user import CollegeName, User, UserRole
 
 
 def test_health_endpoint(client: TestClient):
-    """Characterization test: GET /health returns ok status."""
+    """Characterization test: GET /health returns ok status without exposing env (sanitized in WP3)."""
     response = client.get("/health")
     assert response.status_code == 200
     data = response.json()
-    assert data["status"] == "ok"
-    assert "env" in data
+    assert data == {"status": "ok"}
+    assert "env" not in data
 
 
 def test_register_verify_login_happy_path(client: TestClient):
