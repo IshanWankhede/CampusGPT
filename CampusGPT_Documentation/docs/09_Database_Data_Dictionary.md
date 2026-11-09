@@ -22,26 +22,38 @@ Column names for the existing tables below come from the audit and the migration
 | profile_picture | URL/text | widened in 0005 |
 | created_at, updated_at | Timestamps | |
 
-### `otp_verifications` — IMPLEMENTED
+### `otp_verifications` — IMPLEMENTED (Hardened in WP2)
 | Column | Meaning | Notes |
 |---|---|---|
-| id | PK | |
+| id | PK | UUID |
 | user_id | FK users, nullable (added in 0003) | nullable so sign-up OTPs can exist before a user |
 | email | Target email | |
 | otp_hash | Hashed code | |
 | purpose | EMAIL_VERIFY / PASSWORD_RESET enum | |
 | expires_at | 10-minute expiry | |
 | attempts | Wrong guesses (max 5) | |
-| is_used | Consumed **or locked** | overloaded meaning = defect C2 |
+| is_used | Consumed or locked | Set to true on 5 failed attempts or successful verification |
+| verified_at | Proof of verification | Nullable timestamptz (added in 0007); set ONLY on successful OTP verification |
 | created_at | | index on (email, purpose, is_used) |
 
+### `role_requests` — IMPLEMENTED (WP2: Revision 0008)
+| Column | Meaning | Notes |
+|---|---|---|
+| id | PK | UUID |
+| user_id | FK users (ON DELETE SET NULL) | Nullable to preserve audit history |
+| applicant_email | Immutable email | Guaranteed retention even if user is deleted |
+| requested_role | UserRole enum | FACULTY (ADMIN rejected publicly) |
+| status | RoleRequestStatus enum | PENDING / APPROVED / REJECTED |
+| reviewed_by | FK users (ON DELETE SET NULL) | Admin who reviewed the request |
+| reviewed_at | Review timestamp | Timestamptz |
+| note | Administrative note | Nullable text |
+| created_at | Creation timestamp | Timestamptz |
+
 ## Proposed foundation tables
-- **`role_requests`** (WP2): id, user_id FK users, requested_role, status[PENDING|APPROVED|REJECTED], reviewed_by FK users, reviewed_at, note, created_at
 - **`login_codes`** (WP4): id, code_hash UNIQUE, user_id FK users, expires_at, used_at, created_at
 - **`refresh_tokens`** (WP6): id, jti UNIQUE, family_id, user_id FK users, issued_at, expires_at, revoked_at, replaced_by, user_agent, ip_hash
 - **`auth_attempts`** (WP5): id, action, identifier_hash, ip_hash, success, created_at; index (action, identifier_hash, created_at)
 - **`audit_logs`** (WP11): id, actor_id, action, target_type, target_id, outcome, ip_hash, request_id, metadata JSON, created_at (append-only)
-- **`otp_verifications.verified_at`** (WP2): nullable timestamptz; set only on successful verification
 
 ## Proposed academic structure
 - **`institutions`** (PD-07): id, name, college_code — only if multi-tenant is chosen

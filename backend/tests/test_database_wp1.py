@@ -14,6 +14,7 @@ def test_metadata_contains_all_models():
     tables = Base.metadata.tables
     assert "users" in tables, "Table 'users' is missing from Base.metadata"
     assert "otp_verifications" in tables, "Table 'otp_verifications' is missing from Base.metadata"
+    assert "role_requests" in tables, "Table 'role_requests' is missing from Base.metadata"
 
     user_cols = {c.name for c in tables["users"].columns}
     expected_user_cols = {
@@ -43,9 +44,24 @@ def test_metadata_contains_all_models():
         "expires_at",
         "attempts",
         "is_used",
+        "verified_at",
         "created_at",
     }
     assert expected_otp_cols.issubset(otp_cols), f"Missing otp columns: {expected_otp_cols - otp_cols}"
+
+    role_req_cols = {c.name for c in tables["role_requests"].columns}
+    expected_role_req_cols = {
+        "id",
+        "user_id",
+        "applicant_email",
+        "requested_role",
+        "status",
+        "reviewed_by",
+        "reviewed_at",
+        "note",
+        "created_at",
+    }
+    assert expected_role_req_cols.issubset(role_req_cols), f"Missing role_requests columns: {expected_role_req_cols - role_req_cols}"
 
 
 def test_pgvector_extension_enabled():

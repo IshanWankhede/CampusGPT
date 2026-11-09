@@ -9,10 +9,10 @@ PostgreSQL only. SQLAlchemy 2.x models; Alembic **additive** migrations; UUID pr
 | Object | Status |
 |---|---|
 | `users` | IMPLEMENTED (PO-RV) |
-| `otp_verifications` | IMPLEMENTED (PO-RV) (defect C2) |
-| `alembic_version` | IMPLEMENTED (PO-RV); head reported as `0005` (REQUIRES VERIFICATION) |
-| PostgreSQL enums: user role, college, auth provider, OTP purpose | IMPLEMENTED (PO-RV) |
-| pgvector extension | NOT IMPLEMENTED as a migration |
+| `otp_verifications` | IMPLEMENTED (WP2: `verified_at` added via 0007) |
+| `alembic_version` | Head: `0008` (test db migrated to 0008; live dev db preserved at 0005) |
+| PostgreSQL enums: user role, college, auth provider, OTP purpose, role request status | IMPLEMENTED |
+| pgvector extension | IMPLEMENTED via additive migration 0006 |
 
 ## 3. Proposed foundation additions (Stage 0)
 | Object | Work package | Shape |

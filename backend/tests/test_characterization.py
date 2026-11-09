@@ -216,20 +216,14 @@ def test_google_oauth_callback_new_and_existing_user(client: TestClient):
 
 
 # ==============================================================================
-# Known Defects (Marked xfail(strict=True) per WP0 requirements)
+# Security Defect Verification Tests (Resolved in WP2)
 # ==============================================================================
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Defect C1: Google users with null password hash bypass auth and can log in with any password",
-)
 def test_c1_google_user_null_password_bypass(client: TestClient):
-    """Defect C1 characterization:
+    """Defect C1 verification:
     A user created via Google OAuth has hashed_password=None.
-    A secure system MUST reject local password login for null-password accounts.
-    Under current defective code, authenticate_user allows any password, returning 200.
-    Asserting 401 Unauthorized fails on current code, confirming defect C1.
+    A secure system MUST reject local password login for null-password accounts with 401.
     """
     google_email = "c1.victim@vit.edu"
     state = service.create_oauth_state(CollegeName.VIT)
@@ -255,8 +249,7 @@ def test_c1_google_user_null_password_bypass(client: TestClient):
             follow_redirects=False,
         )
 
-    # Attempt to log in with an arbitrary password.
-    # In secure code, this MUST return 401. Current code returns 200.
+    # Attempt to log in with an arbitrary password. Must return 401 Unauthorized.
     response = client.post(
         "/api/v1/auth/login",
         json={"email": google_email, "password": "arbitrary_password", "college": "VIT"},
@@ -266,17 +259,10 @@ def test_c1_google_user_null_password_bypass(client: TestClient):
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Defect C2: 5 failed OTP attempts mark is_used=True and permit email verification bypass",
-)
 def test_c2_five_failed_otp_verification_bypass(client: TestClient):
-    """Defect C2 characterization:
-    When an OTP is guessed incorrectly 5 times, verify_otp sets record.is_used = True.
-    has_recent_used_email_otp mistakenly treats is_used=True as 'verified'.
-    A secure system MUST refuse registration if OTP was never guessed correctly.
-    Under current defective code, registration succeeds with 201 Created.
-    Asserting 400 Bad Request fails on current code, confirming defect C2.
+    """Defect C2 verification:
+    When an OTP is guessed incorrectly 5 times, verify_otp locks the code without setting verified_at.
+    A secure system MUST refuse registration if OTP was never verified successfully.
     """
     email = "c2.attacker@vit.edu"
     real_otp = "123456"
@@ -294,7 +280,7 @@ def test_c2_five_failed_otp_verification_bypass(client: TestClient):
             json={"email": email, "otp": "000000", "purpose": "EMAIL_VERIFY"},
         )
 
-    # Attempt registration. A secure system must reject this.
+    # Attempt registration. A secure system must reject this with 400 Bad Request.
     reg_response = client.post(
         "/api/v1/auth/register",
         json={
@@ -309,42 +295,64 @@ def test_c2_five_failed_otp_verification_bypass(client: TestClient):
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Defect C3: Public registration allows client self-assignment of ADMIN/FACULTY role",
-)
 def test_c3_role_escalation_on_public_register(client: TestClient):
-    """Defect C3 characterization:
-    Public registration endpoint accepts role from client payload.
-    A secure system MUST ignore client-supplied privileged roles or reject the request.
-    Under current defective code, the user is created directly with role ADMIN.
-    Asserting that role is downgraded to STUDENT (or rejected) fails on current code, confirming C3.
+    """Defect C3 verification:
+    Public registration endpoint strictly forbids ADMIN self-assignment (returning 422).
+    FACULTY requests create a STUDENT account with a PENDING role request.
     """
-    email = "c3.escalated@vit.edu"
+    admin_attempt_email = "c3.admin.attempt@vit.edu"
     otp = "456789"
 
     with patch("app.auth.service.generate_otp", return_value=otp):
         client.post(
             "/api/v1/auth/send-otp",
-            json={"email": email, "purpose": "EMAIL_VERIFY", "college": "VIT"},
+            json={"email": admin_attempt_email, "purpose": "EMAIL_VERIFY", "college": "VIT"},
         )
         client.post(
             "/api/v1/auth/verify-otp",
-            json={"email": email, "otp": otp, "purpose": "EMAIL_VERIFY"},
+            json={"email": admin_attempt_email, "otp": otp, "purpose": "EMAIL_VERIFY"},
         )
 
-    reg_response = client.post(
+    # Public request for ADMIN role must be rejected with 422 Unprocessable Entity
+    admin_reg_res = client.post(
         "/api/v1/auth/register",
         json={
-            "email": email,
+            "email": admin_attempt_email,
             "password": "Password123!",
-            "full_name": "Privilege Escalator",
+            "full_name": "Admin Wannabe",
             "role": "ADMIN",
             "college": "VIT",
         },
     )
-    assert reg_response.status_code == 201
-    user_data = reg_response.json()
-    assert user_data["role"] == "STUDENT", (
-        f"Expected role to be restricted to STUDENT, but was granted {user_data['role']}"
+    assert admin_reg_res.status_code == 422, (
+        f"Expected ADMIN registration to be rejected with 422, but got {admin_reg_res.status_code}"
     )
+
+    # Now verify FACULTY request creates STUDENT with PENDING role_request
+    faculty_attempt_email = "c3.faculty.applicant@vit.edu"
+    with patch("app.auth.service.generate_otp", return_value=otp):
+        client.post(
+            "/api/v1/auth/send-otp",
+            json={"email": faculty_attempt_email, "purpose": "EMAIL_VERIFY", "college": "VIT"},
+        )
+        client.post(
+            "/api/v1/auth/verify-otp",
+            json={"email": faculty_attempt_email, "otp": otp, "purpose": "EMAIL_VERIFY"},
+        )
+
+    faculty_reg_res = client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": faculty_attempt_email,
+            "password": "Password123!",
+            "full_name": "Faculty Applicant",
+            "role": "FACULTY",
+            "college": "VIT",
+        },
+    )
+    assert faculty_reg_res.status_code == 201
+    user_data = faculty_reg_res.json()
+    assert user_data["role"] == "STUDENT", "User role must be STUDENT upon initial registration"
+    assert user_data["pending_role_request"] is not None, "A pending role request must be attached"
+    assert user_data["pending_role_request"]["requested_role"] == "FACULTY"
+    assert user_data["pending_role_request"]["status"] == "PENDING"

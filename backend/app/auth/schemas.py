@@ -1,10 +1,11 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
-from app.models.user import AuthProvider, CollegeName, UserRole
 from app.models.otp_verification import OtpPurpose
+from app.models.role_request import RoleRequestStatus
+from app.models.user import AuthProvider, CollegeName, UserRole
 
 
 class RegisterRequest(BaseModel):
@@ -13,6 +14,13 @@ class RegisterRequest(BaseModel):
     full_name: str = Field(min_length=1, max_length=255)
     role: UserRole = UserRole.STUDENT
     college: CollegeName = CollegeName.VIT
+
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, v: UserRole) -> UserRole:
+        if v == UserRole.ADMIN:
+            raise ValueError("Administrator role cannot be requested publicly")
+        return v
 
 
 class LoginRequest(BaseModel):
@@ -47,6 +55,24 @@ class ResetPasswordRequest(BaseModel):
     new_password: str = Field(min_length=8, max_length=128)
 
 
+class RoleRequestResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    user_id: uuid.UUID | None
+    applicant_email: str
+    requested_role: UserRole
+    status: RoleRequestStatus
+    reviewed_by: uuid.UUID | None = None
+    reviewed_at: datetime | None = None
+    note: str | None = None
+    created_at: datetime
+
+
+class RoleRequestReviewAction(BaseModel):
+    note: str | None = None
+
+
 class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -61,6 +87,7 @@ class UserResponse(BaseModel):
     is_email_verified: bool
     created_at: datetime
     updated_at: datetime
+    pending_role_request: RoleRequestResponse | None = None
 
 
 class TokenResponse(BaseModel):

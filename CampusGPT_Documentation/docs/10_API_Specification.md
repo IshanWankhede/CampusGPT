@@ -28,18 +28,18 @@
 | Method | Path | Auth | Status |
 |---|---|---|---|
 | GET | `/health` | none | IMPLEMENTED (PO-RV) |
-| POST | `/api/v1/auth/register` | none (verified email required) | IMPLEMENTED BUT DEFECTIVE (PO-RV) (C2, C3) |
-| POST | `/api/v1/auth/login` | none | IMPLEMENTED BUT DEFECTIVE (PO-RV) (C1) |
+| POST | `/api/v1/auth/register` | none (verified email required) | IMPLEMENTED & HARDENED (WP2: C2/C3 closed, creates STUDENT + pending role request, rejects ADMIN with 422) |
+| POST | `/api/v1/auth/login` | none | IMPLEMENTED & HARDENED (WP2: C1 closed, timing equalized dummy hash comparison) |
 | POST | `/api/v1/auth/refresh` | refresh token | PARTIALLY IMPLEMENTED (PO-RV) (no rotation) |
 | POST | `/api/v1/auth/logout` | access | no-op |
-| GET | `/api/v1/auth/me` | access | IMPLEMENTED (PO-RV) |
+| GET | `/api/v1/auth/me` | access | IMPLEMENTED (WP2: exposes pending_role_request) |
 | GET | `/api/v1/auth/admin-test` | ADMIN | placeholder |
-| POST | `/api/v1/auth/send-otp` | none | IMPLEMENTED BUT DEFECTIVE (PO-RV) |
-| POST | `/api/v1/auth/verify-otp` | none | IMPLEMENTED BUT DEFECTIVE (PO-RV) |
-| POST | `/api/v1/auth/forgot-password` | none | IMPLEMENTED (PO-RV) |
+| POST | `/api/v1/auth/send-otp` | none | IMPLEMENTED & HARDENED (WP2: mandatory domain check, user-enum defense, 503 on provider error) |
+| POST | `/api/v1/auth/verify-otp` | none | IMPLEMENTED & HARDENED (WP2: C2 closed, sets verified_at only on success) |
+| POST | `/api/v1/auth/forgot-password` | none | IMPLEMENTED & HARDENED (WP2: user-enum defense) |
 | POST | `/api/v1/auth/reset-password` | none | IMPLEMENTED (PO-RV) |
 | GET | `/api/v1/auth/google/login` | none | IMPLEMENTED (PO-RV) |
-| GET | `/api/v1/auth/google/callback` | none | IMPLEMENTED BUT DEFECTIVE (PO-RV) (H1) |
+| GET | `/api/v1/auth/google/callback` | none | IMPLEMENTED & HARDENED (WP2: requires verified local account before linking) |
 
 ## 3. Proposed foundation endpoints
 | Method | Path | Work package | Notes |
@@ -47,9 +47,9 @@
 | POST | `/api/v1/auth/google/exchange` | WP4 | body `{ "code": "…" }` → token response |
 | POST | `/api/v1/auth/logout` | WP6 | body carries refresh token; revokes it |
 | POST | `/api/v1/auth/logout-all` | WP6 | revoke every session |
-| GET | `/api/v1/admin/role-requests` | WP2 | ADMIN |
-| POST | `/api/v1/admin/role-requests/{id}/approve` | WP2 | ADMIN |
-| POST | `/api/v1/admin/role-requests/{id}/reject` | WP2 | ADMIN |
+| GET | `/api/v1/admin/role-requests` | WP2 | ADMIN (IMPLEMENTED) |
+| POST | `/api/v1/admin/role-requests/{id}/approve` | WP2 | ADMIN (IMPLEMENTED) |
+| POST | `/api/v1/admin/role-requests/{id}/reject` | WP2 | ADMIN (IMPLEMENTED) |
 
 Changed behaviour (same paths): `/register` ignores privileged roles; `/send-otp` always validates domain and may return 503; limited endpoints return 429.
 

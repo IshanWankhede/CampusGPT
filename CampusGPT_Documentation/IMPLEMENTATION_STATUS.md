@@ -10,11 +10,11 @@ Update after every prompt. Never mark a feature complete because its UI exists.
 ## Stage 0 — Foundation
 | Item | State | Level | Notes |
 |---|---|---|---|
-| Authentication backend (JWT, Google, OTP, reset) | Implemented with defects (C1–C3, H1–H4 confirmed) | 3–4 | Confirmed via REPO_AUDIT_2026-11-09.md; Stage 0 remediation required |
+| Authentication backend (JWT, Google, OTP, reset) | Hardened & Remediated | 5 (Tested) | Defects C1, C2, C3 closed; account linking & enumeration defense implemented |
 | Landing / sign-in / sign-up pages | Implemented | 2 | Verified on live code; preserve |
 | WP0 baseline, backup, harness | Implemented | 5 (Tested) | Tag pre-foundation-baseline, backup verified, characterization suite passing (7 passed, 3 strict xfail) |
 | WP1 Alembic registration + pgvector migration | Implemented | 5 (Tested) | Models registered with Base.metadata, revision 0006 enables pgvector, autogenerate drift check clean (0 drift) |
-| WP2 critical auth fixes + faculty approval | Not started | — | |
+| WP2 critical auth fixes + faculty approval | Implemented | 5 (Tested) | Revisions 0007-0008, C1/C2/C3 closed, role request lifecycle & CLI, 31 passing tests |
 | WP3 production configuration | Not started | — | |
 | WP4 OAuth code exchange | Not started | — | |
 | WP5 rate limiting | Not started | — | |

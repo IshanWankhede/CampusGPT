@@ -12,9 +12,13 @@ from app.auth.schemas import RegisterRequest
 from app.core.config import settings
 from app.core.email import reset_email, send_email, verification_email
 from app.models.otp_verification import OtpPurpose
+from app.models.role_request import RoleRequestStatus
 from app.models.user import CollegeName, User, UserRole
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# Pre-computed valid bcrypt dummy hash for timing attack mitigation on unknown users / null passwords
+DUMMY_BCRYPT_HASH = "$2b$12$UDL8pWbn.eMsGObcChigK.9babTnY27JsavEtMukzl3OJ526.vfUC"
 
 COLLEGE_DOMAIN_MAP: dict[CollegeName, str] = {
     CollegeName.COEP: "coep.ac.in",
@@ -79,23 +83,40 @@ def verify_password(password: str, hashed_password: str) -> bool:
 
 
 def register_user(db: Session, request: RegisterRequest) -> User:
-    email = request.email.lower()
+    email = request.email.lower().strip()
     validate_college_email_domain(email, request.college)
     if repository.get_user_by_email(db, email):
         raise ValueError("A user with this email already exists")
-    if not repository.has_recent_used_email_otp(db, email):
+    if not repository.has_recent_verified_email_otp(db, email):
         raise ValueError("Please verify your email before creating an account")
+
+    # Public registration strictly restricted: Admin role forbidden
+    if request.role == UserRole.ADMIN:
+        raise ValueError("Administrator role cannot be requested publicly")
+
     try:
+        # Public registration always creates account with STUDENT role
         user = repository.create_user(
             db,
             email=email,
             hashed_password=hash_password(request.password),
             full_name=request.full_name,
-            role=request.role,
+            role=UserRole.STUDENT,
             college=request.college,
         )
         user.is_email_verified = True
         db.commit()
+
+        # If user requested FACULTY, record a PENDING role request
+        if request.role == UserRole.FACULTY:
+            repository.create_role_request(
+                db,
+                user_id=user.id,
+                applicant_email=user.email,
+                requested_role=UserRole.FACULTY,
+                note="Public registration faculty role request",
+            )
+
         return user
     except IntegrityError:
         db.rollback()
@@ -107,8 +128,14 @@ def authenticate_user(
 ) -> User | None:
     user = repository.get_user_by_email(db, email)
     if user is None:
+        # Equalize execution timing when user does not exist
+        verify_password(password, DUMMY_BCRYPT_HASH)
         return None
-    if user.hashed_password and not verify_password(password, user.hashed_password):
+    if user.hashed_password is None:
+        # Defect C1 fix: Google OAuth or null-hash accounts cannot authenticate via password
+        verify_password(password, DUMMY_BCRYPT_HASH)
+        return None
+    if not verify_password(password, user.hashed_password):
         return None
     if user.role != UserRole.ADMIN:
         if college and user.college and user.college != college:
@@ -128,15 +155,21 @@ def create_and_send_otp(
     email: str | None = None,
     college: CollegeName | None = None,
 ) -> None:
-    target_email = (email or (user.email if user else "")).lower()
+    target_email = (email or (user.email if user else "")).lower().strip()
     if not target_email:
         raise ValueError("An email address is required")
-    if purpose == OtpPurpose.EMAIL_VERIFY and college is not None:
-        validate_college_email_domain(target_email, college)
+
+    # Mandatory institutional domain verification for EMAIL_VERIFY
+    if purpose == OtpPurpose.EMAIL_VERIFY:
+        derived_college = derive_college_from_email(target_email)
+        if college is not None and derived_college != college:
+            raise ValueError("The selected college does not match your email domain.")
+
     if repository.count_recent_otps(
         db, purpose, user_id=user.id if user else None, email=target_email
     ) >= 3:
         raise ValueError("Too many requests, please wait before requesting another code")
+
     otp = generate_otp()
     repository.create_otp(
         db,
@@ -155,8 +188,9 @@ def create_and_send_otp(
 def verify_otp(
     db: Session, user: User | None, otp: str, purpose: OtpPurpose, *, email: str | None = None
 ) -> bool:
+    target_email = (email or (user.email if user else "")).lower().strip()
     record = repository.get_latest_active_otp(
-        db, purpose, user_id=user.id if user else None, email=(email or user.email).lower() if (email or user) else None
+        db, purpose, user_id=user.id if user else None, email=target_email if target_email else None
     )
     now = datetime.now(timezone.utc)
     if record is None or record.expires_at <= now:
@@ -173,7 +207,10 @@ def verify_otp(
         if record.attempts >= 5:
             raise ValueError("Too many failed attempts, please request a new code")
         raise ValueError("Incorrect code")
+
+    # Defect C2 fix: Record verified_at only upon successful OTP verification
     record.is_used = True
+    record.verified_at = datetime.now(timezone.utc)
     db.commit()
     return True
 

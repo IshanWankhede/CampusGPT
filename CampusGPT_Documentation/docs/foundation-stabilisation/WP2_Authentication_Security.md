@@ -1,7 +1,10 @@
 # WP2 — Critical Authentication Security Fixes
 
 **Stage 0 foundation work package.** Position in the mandatory order: Steps 7–8 (see `Foundation_Execution_Order.md`).
-**Implementation status:** NOT STARTED. Everything below is a plan unless marked otherwise. Schema objects named here are **PROPOSED**; migration revision numbers are **illustrative** — read the real Alembic head first.
+**Implementation status:** IMPLEMENTED (Tested & Verified).
+- Schema changes: Revision 0007 (`verified_at` column on `otp_verifications`), Revision 0008 (`role_requests` table and `role_request_status` enum). Both migrations are purely additive.
+- Code changes: Defect C1 (timing-equalized dummy bcrypt verification for null-hash / unknown accounts), Defect C2 (15-minute `verified_at` validation for registration, mandatory institutional domain checks, 503 provider failure handling), Defect C3 (public registration restricted to STUDENT, pending role requests for FACULTY, 422 for ADMIN, admin approval/rejection endpoints & CLI).
+- Database safety: Original `campusgpt` database strictly untouched at revision 0005. Tested against isolated `campusgpt_test` database with 31/31 passing tests.
 
 > **Provenance — read before trusting any "existing repository" statement.** Statements about the existing CampusGPT repository come from a read-only audit of an **older snapshot** (`CampusGPT-main.zip`) made earlier in this project. That snapshot is **not** the current live repository, nothing was executed, and no database was touched. All such statements are labelled **PO-RV — Previously observed, re-verification required**. The codebase is the source of truth for what exists; this documentation defines the intended architecture and requirements. Where they disagree, document the discrepancy and request review. Every prompt requires Antigravity to inspect the actual repository before acting; file paths in this package are previously observed paths, not guaranteed ones.
 

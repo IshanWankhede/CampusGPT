@@ -1,3 +1,4 @@
+import logging
 import urllib.parse
 from typing import Annotated
 
@@ -10,36 +11,47 @@ from sqlalchemy.orm import Session
 from app.auth import service
 from app.auth.schemas import (
     AccessTokenResponse,
+    ForgotPasswordRequest,
     LoginRequest,
     RefreshRequest,
     RegisterRequest,
-    SendOtpRequest,
-    VerifyOtpRequest,
-    ForgotPasswordRequest,
     ResetPasswordRequest,
+    RoleRequestResponse,
+    SendOtpRequest,
     TokenResponse,
     UserResponse,
+    VerifyOtpRequest,
 )
 from app.core.config import settings
 from app.core.dependencies import get_current_user, require_role
 from app.database.session import get_db
+from app.models.otp_verification import OtpPurpose
 from app.models.user import CollegeName, User, UserRole
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 DbSession = Annotated[Session, Depends(get_db)]
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def register(request: RegisterRequest, db: DbSession) -> User:
+def register(request: RegisterRequest, db: DbSession) -> UserResponse:
     try:
-        return service.register_user(db, request)
+        user = service.register_user(db, request)
+        user_resp = UserResponse.model_validate(user)
+        pending_req = service.repository.get_pending_role_request_for_user(db, user.id)
+        if pending_req:
+            user_resp.pending_role_request = RoleRequestResponse.model_validate(pending_req)
+        return user_resp
     except ValueError as exc:
         message = str(exc)
         code = (
             status.HTTP_409_CONFLICT
             if "exists" in message
+            else status.HTTP_422_UNPROCESSABLE_ENTITY
+            if "Administrator" in message
             else status.HTTP_400_BAD_REQUEST
-            if "verify your email" in message or "college email" in message
+            if "verify your email" in message or "college email" in message or "domain is not associated" in message
             else status.HTTP_503_SERVICE_UNAVAILABLE
         )
         raise HTTPException(status_code=code, detail=message) from exc
@@ -60,10 +72,16 @@ def login(request: LoginRequest, db: DbSession) -> TokenResponse:
         )
     if not user.is_email_verified:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Please verify your email before signing in")
+
+    user_resp = UserResponse.model_validate(user)
+    pending_req = service.repository.get_pending_role_request_for_user(db, user.id)
+    if pending_req:
+        user_resp.pending_role_request = RoleRequestResponse.model_validate(pending_req)
+
     return TokenResponse(
         access_token=service.create_access_token(user),
         refresh_token=service.create_refresh_token(user),
-        user=user,
+        user=user_resp,
     )
 
 
@@ -160,15 +178,24 @@ def google_callback(
 
     user = service.repository.get_user_by_email(db, email)
     if user is not None:
+        # Prevent pre-registration takeover: local account must already be email verified
+        if not user.is_email_verified:
+            return redirect_error("Cannot link Google account to an unverified local account.")
+
         if user.college and user.college != derived_college:
             return redirect_error("The selected college does not match your registered institution.")
         if not user.college:
             user.college = derived_college
+
+        # Verify Google ID linking
         if not user.google_id:
+            logger.info("Linking Google account %s to verified user %s", google_sub, user.email)
             user.google_id = google_sub
-        if not user.profile_picture:
+        elif user.google_id != google_sub:
+            return redirect_error("Google identity mismatch for this account.")
+
+        if not user.profile_picture and profile_picture:
             user.profile_picture = profile_picture
-        user.is_email_verified = True
         db.commit()
     else:
         user = service.repository.create_google_user(
@@ -178,6 +205,7 @@ def google_callback(
             college=derived_college,
             google_id=google_sub,
             profile_picture=profile_picture,
+            role=UserRole.STUDENT,
         )
 
     access_token = service.create_access_token(user)
@@ -206,8 +234,12 @@ def logout(_: Annotated[User, Depends(get_current_user)]) -> Response:
 
 
 @router.get("/me", response_model=UserResponse)
-def me(current_user: Annotated[User, Depends(get_current_user)]) -> User:
-    return current_user
+def me(current_user: Annotated[User, Depends(get_current_user)], db: DbSession) -> UserResponse:
+    user_resp = UserResponse.model_validate(current_user)
+    pending_req = service.repository.get_pending_role_request_for_user(db, current_user.id)
+    if pending_req:
+        user_resp.pending_role_request = RoleRequestResponse.model_validate(pending_req)
+    return user_resp
 
 
 @router.get(
@@ -231,9 +263,23 @@ def send_otp(request: SendOtpRequest, db: DbSession) -> dict[str, str]:
             except ValueError as exc:
                 if "Too many" in str(exc):
                     raise HTTPException(status_code=429, detail=str(exc)) from exc
+            except RuntimeError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="Email service is temporarily unavailable. Please try again later.",
+                ) from exc
         return {"message": "If an account with this email exists, a code has been sent."}
+
+    # EMAIL_VERIFY: enforce mandatory server-side institutional email domain check
+    try:
+        service.derive_college_from_email(request.email)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    # User enumeration defense: if account already exists and is verified, return generic success without sending code
     if user is not None and user.is_email_verified:
-        raise HTTPException(status_code=409, detail="Already verified")
+        return {"message": "Verification code sent"}
+
     try:
         service.create_and_send_otp(
             db, user, request.purpose, email=request.email, college=request.college
@@ -241,6 +287,11 @@ def send_otp(request: SendOtpRequest, db: DbSession) -> dict[str, str]:
     except ValueError as exc:
         code = 429 if "Too many" in str(exc) else 400
         raise HTTPException(status_code=code, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Email service is temporarily unavailable. Please try again later.",
+        ) from exc
     return {"message": "Verification code sent"}
 
 

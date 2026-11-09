@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.models.user import AuthProvider, CollegeName, User, UserRole
 from app.models.otp_verification import OtpPurpose, OtpVerification
+from app.models.role_request import RoleRequest, RoleRequestStatus
 
 
 def get_user_by_email(db: Session, email: str) -> User | None:
@@ -118,17 +119,72 @@ def get_latest_active_otp(
     )
 
 
-def has_recent_used_email_otp(db: Session, email: str) -> bool:
+def has_recent_verified_email_otp(db: Session, email: str) -> bool:
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=15)
     return (
         db.scalar(
             select(OtpVerification.id)
             .where(
                 OtpVerification.email == email.lower(),
                 OtpVerification.purpose == OtpPurpose.EMAIL_VERIFY,
-                OtpVerification.is_used.is_(True),
-                OtpVerification.expires_at > datetime.now(timezone.utc),
+                OtpVerification.verified_at.is_not(None),
+                OtpVerification.verified_at >= cutoff,
             )
             .limit(1)
         )
         is not None
     )
+
+
+def has_recent_used_email_otp(db: Session, email: str) -> bool:
+    # Retained for compatibility; delegates to verified logic
+    return has_recent_verified_email_otp(db, email)
+
+
+def create_role_request(
+    db: Session,
+    *,
+    user_id: uuid.UUID,
+    applicant_email: str,
+    requested_role: UserRole,
+    note: str | None = None,
+) -> RoleRequest:
+    role_req = RoleRequest(
+        user_id=user_id,
+        applicant_email=applicant_email.lower(),
+        requested_role=requested_role,
+        status=RoleRequestStatus.PENDING,
+        note=note,
+    )
+    db.add(role_req)
+    db.commit()
+    db.refresh(role_req)
+    return role_req
+
+
+def get_role_requests(
+    db: Session, status: RoleRequestStatus | None = None
+) -> list[RoleRequest]:
+    stmt = select(RoleRequest).order_by(desc(RoleRequest.created_at))
+    if status is not None:
+        stmt = stmt.where(RoleRequest.status == status)
+    return list(db.scalars(stmt).all())
+
+
+def get_role_request_by_id(db: Session, request_id: uuid.UUID) -> RoleRequest | None:
+    return db.get(RoleRequest, request_id)
+
+
+def get_pending_role_request_for_user(
+    db: Session, user_id: uuid.UUID
+) -> RoleRequest | None:
+    return db.scalar(
+        select(RoleRequest)
+        .where(
+            RoleRequest.user_id == user_id,
+            RoleRequest.status == RoleRequestStatus.PENDING,
+        )
+        .order_by(desc(RoleRequest.created_at))
+        .limit(1)
+    )
+
