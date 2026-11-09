@@ -5,6 +5,7 @@ from sqlalchemy import desc, select, update
 from sqlalchemy.orm import Session
 
 from app.models.login_code import LoginCode
+from app.models.refresh_token import RefreshToken
 from app.models.user import AuthProvider, CollegeName, User, UserRole
 from app.models.otp_verification import OtpPurpose, OtpVerification
 from app.models.role_request import RoleRequest, RoleRequestStatus
@@ -234,5 +235,66 @@ def consume_login_code(
         return None
     db.commit()
     return db.get(User, user_id)
+
+
+def create_refresh_token_record(
+    db: Session,
+    *,
+    jti: uuid.UUID,
+    family_id: uuid.UUID,
+    user_id: uuid.UUID,
+    issued_at: datetime,
+    expires_at: datetime,
+    user_agent: str | None = None,
+    ip_hash: str | None = None,
+) -> RefreshToken:
+    record = RefreshToken(
+        jti=jti,
+        family_id=family_id,
+        user_id=user_id,
+        issued_at=issued_at,
+        expires_at=expires_at,
+        user_agent=user_agent,
+        ip_hash=ip_hash,
+    )
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+    return record
+
+
+def get_refresh_token_by_jti(db: Session, jti: uuid.UUID) -> RefreshToken | None:
+    return db.scalar(select(RefreshToken).where(RefreshToken.jti == jti))
+
+
+def get_refresh_token_by_jti_for_update(db: Session, jti: uuid.UUID) -> RefreshToken | None:
+    return db.scalar(
+        select(RefreshToken).where(RefreshToken.jti == jti).with_for_update()
+    )
+
+
+def revoke_refresh_token_family(db: Session, family_id: uuid.UUID) -> int:
+    now = datetime.now(timezone.utc)
+    stmt = (
+        update(RefreshToken)
+        .where(RefreshToken.family_id == family_id, RefreshToken.revoked_at.is_(None))
+        .values(revoked_at=now)
+    )
+    result = db.execute(stmt)
+    db.commit()
+    return result.rowcount or 0
+
+
+def revoke_all_user_refresh_tokens(db: Session, user_id: uuid.UUID) -> int:
+    now = datetime.now(timezone.utc)
+    stmt = (
+        update(RefreshToken)
+        .where(RefreshToken.user_id == user_id, RefreshToken.revoked_at.is_(None))
+        .values(revoked_at=now)
+    )
+    result = db.execute(stmt)
+    db.commit()
+    return result.rowcount or 0
+
 
 

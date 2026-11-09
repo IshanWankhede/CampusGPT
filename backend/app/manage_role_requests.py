@@ -104,6 +104,7 @@ def review_request(
                 user = repository.get_user_by_id(db, role_req.user_id)
                 if user:
                     user.role = role_req.requested_role
+                    repository.revoke_all_user_refresh_tokens(db, user.id)
             role_req.status = RoleRequestStatus.APPROVED
             role_req.reviewed_by = admin_id
             role_req.reviewed_at = now

@@ -94,6 +94,10 @@ class GoogleExchangeRequest(BaseModel):
     code: str = Field(min_length=1, max_length=256)
 
 
+class LogoutRequest(BaseModel):
+    refresh_token: str | None = None
+
+
 class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str

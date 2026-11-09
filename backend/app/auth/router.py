@@ -17,6 +17,7 @@ from app.auth.schemas import (
     ForgotPasswordRequest,
     GoogleExchangeRequest,
     LoginRequest,
+    LogoutRequest,
     RefreshRequest,
     RegisterRequest,
     ResetPasswordRequest,
@@ -27,7 +28,7 @@ from app.auth.schemas import (
     VerifyOtpRequest,
 )
 from app.core.config import settings
-from app.core.dependencies import get_current_user, require_role
+from app.core.dependencies import get_current_user, get_current_user_optional, require_role
 from app.database.session import get_db
 from app.models.otp_verification import OtpPurpose
 from app.models.user import CollegeName, User, UserRole
@@ -88,9 +89,20 @@ def login(request: LoginRequest, db: DbSession, http_request: Request) -> TokenR
     if pending_req:
         user_resp.pending_role_request = RoleRequestResponse.model_validate(pending_req)
 
+    user_agent = http_request.headers.get("user-agent")
+    if user_agent:
+        user_agent = user_agent[:256]
+    client_ip = rate_limiter.get_client_ip(http_request)
+    ip_h = rate_limiter.hash_ip(client_ip)
+
     return TokenResponse(
         access_token=service.create_access_token(user),
-        refresh_token=service.create_refresh_token(user),
+        refresh_token=service.create_refresh_token(
+            user,
+            db,
+            user_agent=user_agent,
+            ip_hash=ip_h,
+        ),
         user=user_resp,
     )
 
@@ -328,28 +340,80 @@ def google_exchange(
     if pending_req:
         user_resp.pending_role_request = RoleRequestResponse.model_validate(pending_req)
 
+    user_agent = request.headers.get("user-agent")
+    if user_agent:
+        user_agent = user_agent[:256]
+    client_ip = rate_limiter.get_client_ip(request)
+    ip_h = rate_limiter.hash_ip(client_ip)
+
     return TokenResponse(
         access_token=service.create_access_token(user),
-        refresh_token=service.create_refresh_token(user),
+        refresh_token=service.create_refresh_token(
+            user,
+            db,
+            user_agent=user_agent,
+            ip_hash=ip_h,
+        ),
         user=user_resp,
     )
 
 
-@router.post("/refresh", response_model=AccessTokenResponse)
-def refresh(request: RefreshRequest, db: DbSession) -> AccessTokenResponse:
+@router.post("/refresh", response_model=TokenResponse)
+def refresh(
+    request: RefreshRequest,
+    db: DbSession,
+    http_request: Request,
+) -> TokenResponse:
+    user_agent = http_request.headers.get("user-agent")
+    if user_agent:
+        user_agent = user_agent[:256]
+    client_ip = rate_limiter.get_client_ip(http_request)
+    ip_h = rate_limiter.hash_ip(client_ip)
+
     try:
-        payload = service.decode_token(request.refresh_token, "refresh")
-        user_id = service.parse_user_id(payload)
-    except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token") from None
-    user = db.get(User, user_id)
-    if user is None or not user.is_active:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
-    return AccessTokenResponse(access_token=service.create_access_token(user))
+        new_access_token, new_refresh_token, user = service.rotate_refresh_token(
+            db,
+            request.refresh_token,
+            user_agent=user_agent,
+            ip_hash=ip_h,
+        )
+    except (JWTError, ValueError) as exc:
+        detail_msg = str(exc)
+        if any(keyword in detail_msg.lower() for keyword in ["compromised", "already rotated", "deactivated", "expired"]):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=detail_msg) from exc
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token") from exc
+
+    user_resp = UserResponse.model_validate(user)
+    pending_req = service.repository.get_pending_role_request_for_user(db, user.id)
+    if pending_req:
+        user_resp.pending_role_request = RoleRequestResponse.model_validate(pending_req)
+
+    return TokenResponse(
+        access_token=new_access_token,
+        refresh_token=new_refresh_token,
+        user=user_resp,
+    )
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-def logout(_: Annotated[User, Depends(get_current_user)]) -> Response:
+def logout(
+    db: DbSession,
+    body: LogoutRequest | None = None,
+    current_user: Annotated[User | None, Depends(get_current_user_optional)] = None,
+) -> Response:
+    if body and body.refresh_token:
+        service.revoke_token_family_by_token(db, body.refresh_token)
+    elif current_user:
+        service.repository.revoke_all_user_refresh_tokens(db, current_user.id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/logout-all", status_code=status.HTTP_204_NO_CONTENT)
+def logout_all(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: DbSession,
+) -> Response:
+    service.repository.revoke_all_user_refresh_tokens(db, current_user.id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -464,6 +528,7 @@ def reset_password(request: ResetPasswordRequest, db: DbSession, http_request: R
         rate_limiter.record_attempt(db, http_request, "password_reset", identifier=request.email, success=False)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     user.hashed_password = service.hash_password(request.new_password)
+    service.repository.revoke_all_user_refresh_tokens(db, user.id)
     db.commit()
     rate_limiter.record_attempt(db, http_request, "password_reset", identifier=request.email, success=True)
     return {"message": "Password updated"}

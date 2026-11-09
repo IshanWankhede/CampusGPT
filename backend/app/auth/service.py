@@ -248,8 +248,136 @@ def create_access_token(user: User) -> str:
     )
 
 
-def create_refresh_token(user: User) -> str:
-    return create_token(user, "refresh", timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS))
+def create_refresh_token(
+    user: User,
+    db: Session | None = None,
+    *,
+    family_id: uuid.UUID | None = None,
+    user_agent: str | None = None,
+    ip_hash: str | None = None,
+) -> str:
+    now = datetime.now(timezone.utc)
+    expires_at = now + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    jti = uuid.uuid4()
+    fam_id = family_id or uuid.uuid4()
+
+    payload = {
+        "sub": str(user.id),
+        "jti": str(jti),
+        "family_id": str(fam_id),
+        "role": user.role.value,
+        "type": "refresh",
+        "iat": now,
+        "exp": expires_at,
+    }
+
+    if db is not None:
+        repository.create_refresh_token_record(
+            db,
+            jti=jti,
+            family_id=fam_id,
+            user_id=user.id,
+            issued_at=now,
+            expires_at=expires_at,
+            user_agent=user_agent,
+            ip_hash=ip_hash,
+        )
+
+    return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+
+
+def rotate_refresh_token(
+    db: Session,
+    raw_token: str,
+    user_agent: str | None = None,
+    ip_hash: str | None = None,
+) -> tuple[str, str, User]:
+    payload = decode_token(raw_token, "refresh")
+    raw_jti = payload.get("jti")
+    raw_family_id = payload.get("family_id")
+
+    if not raw_jti or not raw_family_id:
+        raise ValueError("Invalid or legacy refresh token. Please sign in again.")
+
+    try:
+        token_jti = uuid.UUID(str(raw_jti))
+        token_family_id = uuid.UUID(str(raw_family_id))
+    except (ValueError, TypeError):
+        raise ValueError("Invalid refresh token")
+
+    token_record = repository.get_refresh_token_by_jti_for_update(db, token_jti)
+    if token_record is None:
+        # Unknown/untracked tokens cannot trigger family revocation
+        raise ValueError("Invalid refresh token")
+
+    now = datetime.now(timezone.utc)
+
+    # Check reuse
+    if token_record.revoked_at is not None:
+        elapsed = (now - token_record.revoked_at).total_seconds()
+        if elapsed <= settings.REFRESH_TOKEN_LEEWAY_SECONDS:
+            # Benign concurrent tab race: reject without revoking family
+            raise ValueError("Refresh token already rotated. Please use the newest token.")
+        else:
+            # Malicious reuse: revoke the entire family
+            repository.revoke_refresh_token_family(db, token_record.family_id)
+            raise ValueError("Compromised refresh token reuse detected. All sessions in this family have been terminated.")
+
+    if token_record.expires_at <= now:
+        token_record.revoked_at = now
+        db.commit()
+        raise ValueError("Refresh token expired")
+
+    user = repository.get_user_by_id(db, token_record.user_id)
+    if user is None or not user.is_active:
+        token_record.revoked_at = now
+        db.commit()
+        raise ValueError("User account deactivated")
+
+    # Valid token: perform atomic rotation
+    new_jti = uuid.uuid4()
+    token_record.revoked_at = now
+    token_record.replaced_by = new_jti
+
+    new_expires_at = now + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    repository.create_refresh_token_record(
+        db,
+        jti=new_jti,
+        family_id=token_record.family_id,
+        user_id=user.id,
+        issued_at=now,
+        expires_at=new_expires_at,
+        user_agent=user_agent,
+        ip_hash=ip_hash,
+    )
+
+    new_access_token = create_access_token(user)
+    new_payload = {
+        "sub": str(user.id),
+        "jti": str(new_jti),
+        "family_id": str(token_record.family_id),
+        "role": user.role.value,
+        "type": "refresh",
+        "iat": now,
+        "exp": new_expires_at,
+    }
+    new_refresh_token = jwt.encode(new_payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+    db.commit()
+
+    return new_access_token, new_refresh_token, user
+
+
+def revoke_token_family_by_token(db: Session, raw_token: str) -> None:
+    try:
+        payload = decode_token(raw_token, "refresh")
+        raw_jti = payload.get("jti")
+        if raw_jti:
+            token_jti = uuid.UUID(str(raw_jti))
+            token = repository.get_refresh_token_by_jti(db, token_jti)
+            if token:
+                repository.revoke_refresh_token_family(db, token.family_id)
+    except Exception:
+        pass
 
 
 def decode_token(token: str, expected_type: str) -> dict:

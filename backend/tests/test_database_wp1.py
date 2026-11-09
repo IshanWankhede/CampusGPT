@@ -17,6 +17,23 @@ def test_metadata_contains_all_models():
     assert "role_requests" in tables, "Table 'role_requests' is missing from Base.metadata"
     assert "login_codes" in tables, "Table 'login_codes' is missing from Base.metadata"
     assert "auth_attempts" in tables, "Table 'auth_attempts' is missing from Base.metadata"
+    assert "refresh_tokens" in tables, "Table 'refresh_tokens' is missing from Base.metadata"
+
+    refresh_token_cols = {c.name for c in tables["refresh_tokens"].columns}
+    expected_refresh_token_cols = {
+        "id",
+        "jti",
+        "family_id",
+        "user_id",
+        "issued_at",
+        "expires_at",
+        "revoked_at",
+        "replaced_by",
+        "user_agent",
+        "ip_hash",
+        "created_at",
+    }
+    assert expected_refresh_token_cols.issubset(refresh_token_cols), f"Missing refresh_tokens columns: {expected_refresh_token_cols - refresh_token_cols}"
 
     auth_attempt_cols = {c.name for c in tables["auth_attempts"].columns}
     expected_auth_attempt_cols = {

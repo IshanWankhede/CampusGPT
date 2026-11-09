@@ -5,11 +5,72 @@ const STORAGE_KEY = "campusgpt.auth";
 
 const AuthContext = createContext(null);
 
-async function request(path, options = {}) {
+let refreshPromise = null;
+
+async function executeRefresh(refreshToken) {
+  if (!refreshPromise) {
+    refreshPromise = fetch(`${API_BASE}/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.detail || "Session refresh failed");
+        }
+        return data;
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
+}
+
+async function request(path, options = {}, onSessionUpdate = null, onSessionClear = null) {
+  const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
   const response = await fetch(`${API_BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
     ...options,
+    headers,
   });
+
+  if (
+    response.status === 401 &&
+    !options._retry &&
+    !path.startsWith("/login") &&
+    !path.startsWith("/refresh") &&
+    !path.startsWith("/register") &&
+    !path.startsWith("/logout")
+  ) {
+    try {
+      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY)) || null;
+      if (stored?.refresh_token) {
+        const nextSession = await executeRefresh(stored.refresh_token);
+        const merged = { ...stored, ...nextSession };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+        if (onSessionUpdate) onSessionUpdate(merged);
+
+        return request(
+          path,
+          {
+            ...options,
+            _retry: true,
+            headers: {
+              ...(options.headers || {}),
+              Authorization: `Bearer ${nextSession.access_token}`,
+            },
+          },
+          onSessionUpdate,
+          onSessionClear,
+        );
+      }
+    } catch {
+      localStorage.removeItem(STORAGE_KEY);
+      if (onSessionClear) onSessionClear();
+    }
+  }
+
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     const detail = Array.isArray(payload.detail)
@@ -30,15 +91,17 @@ export function AuthProvider({ children }) {
   });
   const [loading, setLoading] = useState(Boolean(session));
 
+  const authRequest = (path, options) =>
+    request(path, options, setSession, () => setSession(null));
+
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get("code");
 
     if (code) {
-      // Immediately scrub authorization code from the browser URL bar
       window.history.replaceState({}, document.title, window.location.pathname);
 
-      request("/google/exchange", {
+      authRequest("/google/exchange", {
         method: "POST",
         credentials: "include",
         body: JSON.stringify({ code }),
@@ -59,7 +122,7 @@ export function AuthProvider({ children }) {
       return;
     }
 
-    request("/me", {
+    authRequest("/me", {
       headers: { Authorization: `Bearer ${session.access_token}` },
     })
       .then((user) => setSession((current) => ({ ...current, user })))
@@ -76,11 +139,11 @@ export function AuthProvider({ children }) {
   };
 
   const login = async (email, password, college) => {
-    const nextSession = await request("/login", {
+    const nextSession = await authRequest("/login", {
       method: "POST",
       body: JSON.stringify({ email, password, college }),
     });
-    const user = await request("/me", {
+    const user = await authRequest("/me", {
       headers: { Authorization: `Bearer ${nextSession.access_token}` },
     });
     saveSession({ ...nextSession, user });
@@ -88,29 +151,48 @@ export function AuthProvider({ children }) {
   };
 
   const register = async (fullName, email, password, role, college) => {
-    return request("/register", {
+    return authRequest("/register", {
       method: "POST",
       body: JSON.stringify({ full_name: fullName, email, password, role, college }),
     });
   };
 
   const sendOtp = (email, purpose, college) =>
-    request("/send-otp", { method: "POST", body: JSON.stringify({ email, purpose, college }) });
+    authRequest("/send-otp", { method: "POST", body: JSON.stringify({ email, purpose, college }) });
   const verifyOtp = (email, otp, purpose) =>
-    request("/verify-otp", { method: "POST", body: JSON.stringify({ email, otp, purpose }) });
+    authRequest("/verify-otp", { method: "POST", body: JSON.stringify({ email, otp, purpose }) });
   const forgotPassword = (email) =>
-    request("/forgot-password", { method: "POST", body: JSON.stringify({ email }) });
+    authRequest("/forgot-password", { method: "POST", body: JSON.stringify({ email }) });
   const resetPassword = (email, otp, newPassword) =>
-    request("/reset-password", {
+    authRequest("/reset-password", {
       method: "POST",
       body: JSON.stringify({ email, otp, new_password: newPassword }),
     });
 
   const logout = async () => {
-    if (session?.access_token) {
-      await request("/logout", {
+    const currentRefresh = session?.refresh_token;
+    if (session?.access_token || currentRefresh) {
+      await fetch(`${API_BASE}/logout`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${session.access_token}` },
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ refresh_token: currentRefresh || null }),
+      }).catch(() => {});
+    }
+    localStorage.removeItem(STORAGE_KEY);
+    setSession(null);
+  };
+
+  const logoutAll = async () => {
+    if (session?.access_token) {
+      await fetch(`${API_BASE}/logout-all`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
       }).catch(() => {});
     }
     localStorage.removeItem(STORAGE_KEY);
@@ -130,6 +212,7 @@ export function AuthProvider({ children }) {
       forgotPassword,
       resetPassword,
       logout,
+      logoutAll,
     }),
     [session, loading],
   );

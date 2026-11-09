@@ -1,7 +1,7 @@
 # WP6 — Refresh Token Rotation and Revocation
 
 **Stage 0 foundation work package.** Position in the mandatory order: Step 12 (see `Foundation_Execution_Order.md`).
-**Implementation status:** NOT STARTED. Everything below is a plan unless marked otherwise. Schema objects named here are **PROPOSED**; migration revision numbers are **illustrative** — read the real Alembic head first.
+**Implementation status:** IMPLEMENTED (Migration `0011`, 136/136 tests passing, full rotation/revocation with 10s leeway, logout/logout-all, cascading revocation on password reset/role change, 15m access token lifetime, and single-flight frontend auto-refresh).
 
 > **Provenance — read before trusting any "existing repository" statement.** Statements about the existing CampusGPT repository come from a read-only audit of an **older snapshot** (`CampusGPT-main.zip`) made earlier in this project. That snapshot is **not** the current live repository, nothing was executed, and no database was touched. All such statements are labelled **PO-RV — Previously observed, re-verification required**. The codebase is the source of truth for what exists; this documentation defines the intended architecture and requirements. Where they disagree, document the discrepancy and request review. Every prompt requires Antigravity to inspect the actual repository before acting; file paths in this package are previously observed paths, not guaranteed ones.
 

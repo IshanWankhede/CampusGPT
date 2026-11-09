@@ -11,6 +11,7 @@ from app.database.session import get_db
 from app.models.user import User, UserRole
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
 
 
 def get_current_user(
@@ -30,6 +31,23 @@ def get_current_user(
     user = repository.get_user_by_id(db, user_id)
     if user is None or not user.is_active:
         raise credentials_error
+    return user
+
+
+def get_current_user_optional(
+    token: Annotated[str | None, Depends(oauth2_scheme_optional)],
+    db: Annotated[Session, Depends(get_db)],
+) -> User | None:
+    if not token:
+        return None
+    try:
+        payload = service.decode_token(token, "access")
+        user_id = service.parse_user_id(payload)
+    except JWTError:
+        return None
+    user = repository.get_user_by_id(db, user_id)
+    if user is None or not user.is_active:
+        return None
     return user
 
 
