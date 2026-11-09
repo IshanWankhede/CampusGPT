@@ -23,3 +23,4 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_column("otp_verifications", "verified_at")
+

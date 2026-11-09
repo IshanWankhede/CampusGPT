@@ -50,3 +50,4 @@ def downgrade() -> None:
     bind = op.get_bind()
     if bind.dialect.name == "postgresql":
         sa.Enum(name="role_request_status").drop(bind, checkfirst=True)
+

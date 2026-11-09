@@ -120,3 +120,4 @@ def reject_role_request(
     db.commit()
     db.refresh(role_req)
     return RoleRequestResponse.model_validate(role_req)
+
